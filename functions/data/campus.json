@@ -1,0 +1,98 @@
+{
+    "campus": "Laurea University of Applied Sciences",
+    "language": "en",
+    "faqs": [
+        {
+            "id": "creator",
+            "keywords": [
+                "who made you",
+                "who created you",
+                "your creator",
+                "who built you",
+                "who developed you",
+                "made you",
+                "created you"
+            ],
+            "question": "Who made you?",
+            "answer": "I was made by Rakesh & Prasiddha."
+        },
+        {
+            "id": "wifi",
+            "keywords": [
+                "wifi",
+                "wi fi",
+                "internet",
+                "net",
+                "network",
+                "eduroam",
+                "password",
+                "pass",
+                "login"
+            ],
+            "question": "How do I connect to campus Wi-Fi?",
+            "answer": "Use the Rakesh Thakur network. Log in with your Laurea email and password. If it does not work, forget the network and reconnect."
+        },
+        {
+            "id": "locker",
+            "keywords": [
+                "locker",
+                "lockers",
+                "personal locker",
+                "charging",
+                "charge",
+                "power",
+                "socket"
+            ],
+            "question": "Do student lockers have charging ports?",
+            "answer": "Some student lockers have power sockets, but availability depends on the campus area. Lockers near the library and study areas are more likely to have charging ports."
+        },
+        {
+            "id": "library",
+            "keywords": [
+                "library",
+                "books",
+                "study",
+                "quiet",
+                "reading"
+            ],
+            "question": "Where is the library?",
+            "answer": "The campus library is usually located near the main entrance or central study areas. Follow campus signs or ask at the reception for directions."
+        },
+        {
+            "id": "opening_hours",
+            "keywords": [
+                "opening hours",
+                "open",
+                "close",
+                "timing",
+                "hours"
+            ],
+            "question": "What are the campus opening hours?",
+            "answer": "Campus opening hours vary by location and day. Most campuses open early morning and close in the evening. Check the official Laurea website for exact hours."
+        },
+        {
+            "id": "printer",
+            "keywords": [
+                "printer",
+                "printing",
+                "print",
+                "scan",
+                "copy"
+            ],
+            "question": "How can I print documents on campus?",
+            "answer": "You can print using campus printers by logging in with your student credentials. Upload documents via the printing portal or print directly from campus computers."
+        },
+        {
+            "id": "canteen",
+            "keywords": [
+                "canteen",
+                "cafeteria",
+                "food",
+                "lunch",
+                "restaurant"
+            ],
+            "question": "Is there a cafeteria on campus?",
+            "answer": "Yes, most campuses have a cafeteria serving breakfast and lunch at student-friendly prices. Menus vary daily."
+        }
+    ]
+}
