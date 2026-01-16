@@ -1,0 +1,255 @@
+🤖 Laurimate – Pepper Robot Campus Assistant
+Final Interaction & UI Concept
+
+
+1. Core Design Principle
+
+Laurimate is designed as a voice-first social robot.
+
+Pepper primarily listens and speaks, while text input is provided as an optional fallback, not the main interaction.
+
+This preserves:
+
+natural human–robot communication
+
+Pepper’s social character
+
+accessibility in noisy or quiet environments
+
+
+
+
+2. Welcome Screen & Idle State
+
+Visual Design
+
+Full-screen minimal interface
+
+Soft animated background
+Laurimate logo
+
+Behavior
+
+Pepper faces the user
+
+Subtle idle animation
+
+“Hello! I’m Laurimate, your campus assistant.”
+
+
+
+
+User can:
+
+
+start speaking by tapping on start and 
+
+Central voice bubble (slow breathing animation) appears
+
+laurimate will write listening
+
+
+
+
+3. Language Selection (Global Control)
+Placement
+
+Top-right corner
+
+Flag icons:
+
+🇬🇧 English
+
+🇫🇮 Finnish
+
+🇸🇪 Swedish
+
+Effect
+
+Changing language updates:
+
+speech recognition language
+
+voice output language
+
+on-screen text captions
+
+Language can be changed at any time.
+
+
+
+
+4. Primary Interaction Mode: Voice (Default)
+UI Layout
+
+Large animated voice bubble in the center
+
+Small microphone icon inside the bubble
+
+Live transcribed text shown below the bubble
+
+Bubble States & Animations
+State	Description
+Idle	Slow pulse (breathing)
+Listening	Expanding sound waves
+Thinking	Rotating dots
+Speaking	Pulse synchronized with voice
+Voice Input Flow
+
+User speaks naturally
+
+Bubble reacts to sound
+
+Recognized speech appears as live text:
+
+“wifi password”
+
+Listening stops automatically
+
+Processing Logic
+
+Campus JSON knowledge searched first
+
+If information exists → direct answer
+
+If not → AI fallback (Gemini)
+
+This ensures:
+
+accuracy
+
+speed
+
+responsible AI usage
+
+Voice Output Flow
+
+Pepper speaks the response using robot TTS
+
+Bubble animates while speaking
+
+Caption text appears below for clarity
+
+Example:
+
+“Use the Eduroam network. Log in with your Laurea email.”
+
+
+
+
+5. Optional Typing Mode (Secondary, Hidden)
+
+Typing is not a separate mode — it is a temporary UI overlay.
+
+Access
+
+Small ⌨️ keyboard icon in the corner
+
+Visible but unobtrusive
+
+Used when:
+
+speech recognition fails
+
+environment is noisy
+
+user prefers typing
+
+
+
+
+
+6. Typing Mode UI (ChatGPT / Messenger Style)
+Design
+
+Clean chat interface
+
+Speech-bubble layout:
+
+User messages on right
+
+Laurimate messages on left
+
+Typing indicator:
+
+animated three dots (…) while processing
+
+Behavior
+
+User types a question
+
+Message appears instantly
+
+Typing dots show while thinking
+
+Pepper still speaks the reply
+
+Text reply appears simultaneously
+
+Typing does not disable voice output.
+
+Example Flow (Typing Mode)
+
+User types:
+
+“Who made you?”
+
+Typing dots appear…
+
+Pepper replies (voice + text):
+
+“I was made by Rakesh and Prasiddha.”
+
+
+
+7. Switching Back to Voice Mode
+
+Keyboard can be closed anytime with the cross button 
+
+Keyboard will go down on closing & UI smoothly transitions back to voice bubble
+
+No session reset required.
+
+Voice interaction remains continuous.
+
+
+
+
+8. Accessibility & UX Considerations
+
+Voice-first interaction supports natural communication.
+
+Text captions improve accessibility.
+
+Typing fallback supports:
+
+hearing-impaired users
+
+international students
+
+noisy or silent spaces
+
+Minimal UI keeps focus on Pepper, not the tablet
+
+
+
+9. Idle & Recovery Behavior
+
+After inactivity:
+
+bubble returns to the start animation
+
+Pepper softly says:
+
+“I’m here if you need help.”
+
+If speech not recognized:
+
+“Sorry, could you repeat that?”
+
+Keyboard option remains available at all times in the corner
+
+10. Concept Summary (One-Sentence Pitch)
+
+
+Laurimate is a multilingual, voice-first campus assistant for the Pepper robot that provides accurate university information through natural speech interaction, with an optional chat-style typing interface as a fallback.
