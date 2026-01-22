@@ -2,16 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Laurimate</title>
   <style>
     html, body {
-      height: 100%;
       margin: 0;
+      height: 100%;
       background: #000;
     }
-    /* Fullscreen GIF */
-    img {
+    video {
       width: 100vw;
       height: 100vh;
       object-fit: cover;   /* fills the whole tablet screen */
@@ -20,7 +19,7 @@
   </style>
 </head>
 <body>
-  <!-- Replace laurea.gif with your actual file path/name -->
-  <img src="laurea.gif" alt="Laurea GIF" />
+  <!-- Fullscreen autoplay video -->
+  <video src="laurea.mp4" autoplay muted loop playsinline></video>
 </body>
 </html>
