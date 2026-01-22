@@ -4,22 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Laurimate</title>
+
   <style>
     html, body {
       margin: 0;
+      width: 100%;
       height: 100%;
-      background: #000;
+      background: #000; /* black bars if aspect ratio differs */
+      overflow: hidden;
     }
+
     video {
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;   /* fills the whole tablet screen */
+      width: 100%;
+      height: 100%;
+      object-fit: contain;   /* ✅ NO CROPPING */
       display: block;
     }
   </style>
 </head>
 <body>
-  <!-- Fullscreen autoplay video -->
-  <video src="laurea.mp4" autoplay muted loop playsinline></video>
+
+  <video
+    src="laurea.mp4"
+    autoplay
+    muted
+    loop
+    playsinline
+  ></video>
+
 </body>
 </html>
