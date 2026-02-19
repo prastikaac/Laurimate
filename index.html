@@ -123,7 +123,7 @@
         <option value="sv-SE">Swedish</option>
       </select>
 
-      
+
       <button id="voiceToggle">Voice: ON</button>
 
       <button id="mic">🎤</button>
@@ -131,188 +131,191 @@
     </footer>
   </div>
 
- <script>
-  const FUNCTION_URL = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app";
+  <script>
+    const FUNCTION_URL = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app";
 
-  const chat = document.getElementById("chat");
-  const msg = document.getElementById("msg");
-  const sendBtn = document.getElementById("send");
-  const micBtn = document.getElementById("mic");
+    const chat = document.getElementById("chat");
+    const msg = document.getElementById("msg");
+    const sendBtn = document.getElementById("send");
+    const micBtn = document.getElementById("mic");
 
-  // ---------- Voice Output (TTS) ----------
-  let VOICE_ON = true;
-  let VOICE_LANG = "en-US";
-  let voices = [];
+    // ---------- Voice Output (TTS) ----------
+    let VOICE_ON = true;
+    let VOICE_LANG = "en-US";
+    let voices = [];
 
-  function loadVoices() {
-    voices = window.speechSynthesis.getVoices();
-  }
-  if ("speechSynthesis" in window) {
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }
-
-  function speakText(text) {
-    if (!VOICE_ON) return;
-    if (!("speechSynthesis" in window)) return;
-
-    window.speechSynthesis.cancel();
-
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = VOICE_LANG;
-    utter.rate = 1;
-    utter.pitch = 1;
-    utter.volume = 1;
-
-    const match = voices.find(v => v.lang === VOICE_LANG);
-    if (match) utter.voice = match;
-
-    window.speechSynthesis.speak(utter);
-  }
-
-  // ---------- UI helpers ----------
-  function addBubble(text, who) {
-    const row = document.createElement("div");
-    row.className = `row ${who}`;
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = text;
-
-    row.appendChild(bubble);
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
-
-    if (who === "bot") speakText(text);
-
-    return row;
-  }
-
-  // ---------- Send message ----------
-  async function sendMessage(forcedText) {
-    const text = (forcedText ?? msg.value).trim();
-    if (!text) return;
-
-    addBubble(text, "me");
-    msg.value = "";
-    msg.focus();
-
-    sendBtn.disabled = true;
-    if (micBtn) micBtn.disabled = true;
-
-    const typingRow = addBubble("Typing…", "bot");
-
-    try {
-      const res = await fetch(FUNCTION_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-      });
-
-      const data = await res.json();
-      typingRow.remove();
-
-      if (!res.ok) {
-        addBubble(`Error ${res.status}: ${data.error || "Request failed"}`, "bot");
-      } else {
-        addBubble(data.reply || "(empty reply)", "bot");
-      }
-    } catch (err) {
-      typingRow.remove();
-      addBubble("Network error. Check console for details.", "bot");
-      console.error(err);
-    } finally {
-      sendBtn.disabled = false;
-      if (micBtn) micBtn.disabled = false;
+    function loadVoices() {
+      voices = window.speechSynthesis.getVoices();
     }
-  }
+    if ("speechSynthesis" in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
 
-  sendBtn.addEventListener("click", () => sendMessage());
-  msg.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") sendMessage();
-  });
+    function speakText(text) {
+      if (!VOICE_ON) return;
+      if (!("speechSynthesis" in window)) return;
 
-  // ---------- Language selector ----------
-  const langSelect = document.getElementById("voiceLang");
-  if (langSelect) {
-    langSelect.onchange = (e) => {
-      VOICE_LANG = e.target.value;
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    };
-    // initialize from current dropdown value
-    VOICE_LANG = langSelect.value || VOICE_LANG;
-  }
+      window.speechSynthesis.cancel();
 
-  // ---------- Voice toggle ----------
-  const voiceBtn = document.getElementById("voiceToggle");
-  if (voiceBtn) {
-    voiceBtn.onclick = () => {
-      VOICE_ON = !VOICE_ON;
-      voiceBtn.textContent = `Voice: ${VOICE_ON ? "ON" : "OFF"}`;
-      if (!VOICE_ON && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    };
-  }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = VOICE_LANG;
+      utter.rate = 1;
+      utter.pitch = 1;
+      utter.volume = 1;
 
-  // ---------- Voice Input (Speech-to-Text) ----------
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
-  let listening = false;
+      const match = voices.find(v => v.lang === VOICE_LANG);
+      if (match) utter.voice = match;
 
-  if (SpeechRecognition && micBtn) {
-    recognition = new SpeechRecognition();
-    recognition.interimResults = false;
-    recognition.continuous = false;
+      window.speechSynthesis.speak(utter);
+    }
 
-    recognition.onstart = () => {
-      listening = true;
-      micBtn.textContent = "🛑";
-      addBubble("Listening…", "bot");
-    };
+    // ---------- UI helpers ----------
+    function addBubble(text, who) {
+      const row = document.createElement("div");
+      row.className = `row ${who}`;
 
-    recognition.onend = () => {
-      listening = false;
-      micBtn.textContent = "🎤";
-    };
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
 
-    recognition.onerror = (e) => {
-      console.error("Speech recognition error:", e);
-      addBubble("Mic error. Try again (use Chrome/Edge).", "bot");
-    };
+      row.appendChild(bubble);
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
 
-    recognition.onresult = (event) => {
-      const spoken = event.results?.[0]?.[0]?.transcript || "";
-      if (spoken.trim()) {
-        msg.value = spoken;        // show in input
-        sendMessage(spoken);       // auto-send
-      }
-    };
+      if (who === "bot") speakText(text);
 
-    micBtn.addEventListener("click", () => {
-      if (!recognition) return;
+      return row;
+    }
 
-      if (listening) {
-        recognition.stop();
-        return;
-      }
+    function sendMessage(forcedText) {
+      var text = (forcedText || msg.value).trim();
+      if (!text) return;
 
-      // Use selected language for recognition too
-      recognition.lang = VOICE_LANG;
+      addBubble(text, "me");
+      msg.value = "";
 
-      try {
-        recognition.start();
-      } catch (err) {
-        console.error(err);
-        addBubble("Could not start microphone. Try reloading the page.", "bot");
-      }
+      sendBtn.disabled = true;
+
+      var typingRow = addBubble("Typing…", "bot");
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", FUNCTION_URL, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          typingRow.remove();
+          sendBtn.disabled = false;
+
+          if (xhr.status === 200) {
+            try {
+              var data = JSON.parse(xhr.responseText);
+              addBubble(data.reply || "(empty reply)", "bot");
+            } catch (e) {
+              addBubble("Invalid response from server.", "bot");
+            }
+          } else {
+            addBubble("Server error: " + xhr.status, "bot");
+          }
+        }
+      };
+
+      xhr.onerror = function () {
+        typingRow.remove();
+        sendBtn.disabled = false;
+        addBubble("Network error.", "bot");
+      };
+
+      xhr.send(JSON.stringify({ message: text }));
+    }
+
+    sendBtn.addEventListener("click", () => sendMessage());
+    msg.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendMessage();
     });
-  } else if (micBtn) {
-    micBtn.disabled = true;
-    micBtn.title = "Speech recognition not supported. Use Chrome/Edge.";
-  }
 
-  // Welcome message
-  addBubble("Hi! I'm Laurimate. You can type or press 🎤 to speak. 😊", "bot");
-</script>
+    // ---------- Language selector ----------
+    const langSelect = document.getElementById("voiceLang");
+    if (langSelect) {
+      langSelect.onchange = (e) => {
+        VOICE_LANG = e.target.value;
+        if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      };
+      // initialize from current dropdown value
+      VOICE_LANG = langSelect.value || VOICE_LANG;
+    }
+
+    // ---------- Voice toggle ----------
+    const voiceBtn = document.getElementById("voiceToggle");
+    if (voiceBtn) {
+      voiceBtn.onclick = () => {
+        VOICE_ON = !VOICE_ON;
+        voiceBtn.textContent = `Voice: ${VOICE_ON ? "ON" : "OFF"}`;
+        if (!VOICE_ON && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      };
+    }
+
+    // ---------- Voice Input (Speech-to-Text) ----------
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let listening = false;
+
+    if (SpeechRecognition && micBtn) {
+      recognition = new SpeechRecognition();
+      recognition.interimResults = false;
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        listening = true;
+        micBtn.textContent = "🛑";
+        addBubble("Listening…", "bot");
+      };
+
+      recognition.onend = () => {
+        listening = false;
+        micBtn.textContent = "🎤";
+      };
+
+      recognition.onerror = (e) => {
+        console.error("Speech recognition error:", e);
+        addBubble("Mic error. Try again (use Chrome/Edge).", "bot");
+      };
+
+      recognition.onresult = (event) => {
+        const spoken = event.results?.[0]?.[0]?.transcript || "";
+        if (spoken.trim()) {
+          msg.value = spoken;        // show in input
+          sendMessage(spoken);       // auto-send
+        }
+      };
+
+      micBtn.addEventListener("click", () => {
+        if (!recognition) return;
+
+        if (listening) {
+          recognition.stop();
+          return;
+        }
+
+        // Use selected language for recognition too
+        recognition.lang = VOICE_LANG;
+
+        try {
+          recognition.start();
+        } catch (err) {
+          console.error(err);
+          addBubble("Could not start microphone. Try reloading the page.", "bot");
+        }
+      });
+    } else if (micBtn) {
+      micBtn.disabled = true;
+      micBtn.title = "Speech recognition not supported. Use Chrome/Edge.";
+    }
+
+    // Welcome message
+    addBubble("Hi! I'm Laurimate. You can type or press 🎤 to speak. 😊", "bot");
+  </script>
 
 
 
