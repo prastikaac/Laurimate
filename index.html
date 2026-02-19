@@ -1,318 +1,166 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Laurimate</title>
+  <title>Laurimate - Pepper Edition</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      margin: 0;
-      padding: 20px;
-    }
-
-    .wrap {
-      max-width: 720px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, .08);
-      overflow: hidden;
-    }
-
-    header {
-      padding: 14px 16px;
-      background: #111827;
-      color: #fff;
-      font-weight: 700;
-    }
-
-    #chat {
-      height: 60vh;
-      overflow: auto;
-      padding: 16px;
-    }
-
-    .row {
-      display: flex;
-      margin: 10px 0;
-    }
-
-    .me {
-      justify-content: flex-end;
-    }
-
-    .bot {
-      justify-content: flex-start;
-    }
-
-    .bubble {
-      max-width: 75%;
-      padding: 10px 12px;
-      border-radius: 14px;
-      line-height: 1.35;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .me .bubble {
-      background: #2563eb;
-      color: #fff;
-      border-bottom-right-radius: 6px;
-    }
-
-    .bot .bubble {
-      background: #e5e7eb;
-      color: #111827;
-      border-bottom-left-radius: 6px;
-    }
-
-    .meta {
-      font-size: 12px;
-      opacity: .7;
-      margin-top: 4px;
-    }
-
-    footer {
-      display: flex;
-      gap: 8px;
-      padding: 12px;
-      border-top: 1px solid #e5e7eb;
-      background: #fafafa;
-    }
-
-    input {
-      flex: 1;
-      padding: 10px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      outline: none;
-    }
-
-    button {
-      padding: 10px 14px;
-      border: 0;
-      border-radius: 10px;
-      background: #111827;
-      color: #fff;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: .6;
-      cursor: not-allowed;
-    }
+    body { font-family: Arial, sans-serif; background: #f3f4f6; margin: 0; padding: 20px; }
+    .wrap { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,.08); overflow: hidden; }
+    header { padding: 14px 16px; background: #111827; color: #fff; font-weight: 700; }
+    #chat { height: 55vh; overflow: auto; padding: 16px; border-bottom: 1px solid #eee; }
+    .row { display: flex; margin: 10px 0; }
+    .me { justify-content: flex-end; }
+    .bot { justify-content: flex-start; }
+    .bubble { max-width: 75%; padding: 10px 12px; border-radius: 14px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
+    .me .bubble { background: #2563eb; color: #fff; border-bottom-right-radius: 6px; }
+    .bot .bubble { background: #e5e7eb; color: #111827; border-bottom-left-radius: 6px; }
+    footer { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; background: #fafafa; }
+    input { flex: 1; min-width: 200px; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 16px; }
+    button, .btn { padding: 10px 14px; border: 0; border-radius: 10px; background: #111827; color: #fff; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+    #mic { font-size: 20px; background: #ef4444; }
+    select { padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <header>Laurimate - Beta </header>
-
+    <header>Laurimate - Pepper Beta</header>
     <div id="chat"></div>
-
     <footer>
-      <input id="msg" placeholder="Type a message..." autocomplete="off" />
-      <a id="send">Send</a>
-
+      <input id="msg" placeholder="Type to Pepper..." autocomplete="off" />
+      <button id="send">Send</button>
       <select id="voiceLang">
-        <option value="en-US">English</option>
-        <option value="fi-FI">Finnish</option>
-        <option value="sv-SE">Swedish</option>
+        <option value="English">English</option>
+        <option value="Finnish">Finnish</option>
+        <option value="Swedish">Swedish</option>
       </select>
-
-
-      <button id="voiceToggle">Voice: ON</button>
-
-      <a id="mic">🎤</a>
-
+      <button id="mic">🎤</button>
     </footer>
   </div>
-<script>
 
-var FUNCTION_URL = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app";
+<script src="qimessaging.js"></script>
 
-var chat = document.getElementById("chat");
-var msg = document.getElementById("msg");
-var sendBtn = document.getElementById("send");
-var micBtn = document.getElementById("mic");
+  <script>
+    var FUNCTION_URL = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app";
+    var ROBOT_IP = "192.168.0.118";
+    
+    var session;
+    var tts, asr, mem;
+    var isListening = false;
 
-// ---------------------------------
-// Add Chat Bubble
-// ---------------------------------
-function addBubble(text, who) {
+    // DOM Elements
+    var chat = document.getElementById("chat");
+    var msg = document.getElementById("msg");
+    var sendBtn = document.getElementById("send");
+    var micBtn = document.getElementById("mic");
+    var langSelect = document.getElementById("voiceLang");
 
-  var row = document.createElement("div");
-  row.className = "row " + who;
+    // 1. Initialize Robot Connection
+    QiSession(function(s) {
+      console.log("Connected to Pepper!");
+      session = s;
+      
+      session.service("ALTextToSpeech").done(function(ins) { tts = ins; });
+      session.service("ALSpeechRecognition").done(function(ins) { asr = ins; });
+      session.service("ALMemory").done(function(ins) { 
+        mem = ins;
+        setupSpeechSignals();
+      });
 
-  var bubble = document.createElement("div");
-  bubble.className = "bubble";
-  bubble.innerHTML = text;
+      addBubble("Connected to Pepper. I'm ready!", "bot");
+    }, function() {
+      addBubble("Error: Could not connect to Pepper's brain.", "bot");
+    }, ROBOT_IP);
 
-  row.appendChild(bubble);
-  chat.appendChild(row);
-  chat.scrollTop = chat.scrollHeight;
+    // 2. Setup Pepper's Ears (Speech Recognition)
+    function setupSpeechSignals() {
+      mem.subscriber("WordRecognized").done(function(sub) {
+        sub.signal.connect(function(data) {
+          // data[0] is word, data[1] is confidence
+          if (data[1] > 0.4 && isListening) {
+            var heard = data[0].replace("<...>", "").trim();
+            if (heard) {
+              stopListening();
+              sendMessage(heard);
+            }
+          }
+        });
+      });
+    }
 
-  if (who === "bot") {
-    speakText(text);
-  }
-
-  return row;
-}
-
-// ---------------------------------
-// Text To Speech (Browser)
-// ---------------------------------
-function speakText(text) {
-
-  if (!("speechSynthesis" in window)) return;
-
-  window.speechSynthesis.cancel();
-
-  var utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "en-US";
-  utter.rate = 1;
-  utter.pitch = 1;
-
-  window.speechSynthesis.speak(utter);
-}
-
-// ---------------------------------
-// Send Message (XMLHttpRequest)
-// ---------------------------------
-function sendMessage(forcedText) {
-
-  var text = forcedText ? forcedText : msg.value;
-  if (!text) return;
-
-  addBubble(text, "me");
-  msg.value = "";
-
-  sendBtn.disabled = true;
-
-  var typingRow = addBubble("Typing...", "bot");
-
-  var xhr = new XMLHttpRequest();
-  xhr.open("POST", FUNCTION_URL, true);
-  xhr.setRequestHeader("Content-Type", "application/json");
-
-  xhr.onreadystatechange = function () {
-
-    if (xhr.readyState === 4) {
-
-      if (typingRow && typingRow.parentNode) {
-        typingRow.parentNode.removeChild(typingRow);
+    // 3. Text to Speech (Robot Voice)
+    function speakText(text) {
+      if (tts) {
+        // Clean text for Pepper (no emojis)
+        var clean = text.replace(/[^\x00-\x7F]/g, ""); 
+        tts.setLanguage(langSelect.value);
+        tts.say(clean);
       }
+    }
 
-      sendBtn.disabled = false;
+    // 4. Send to Gemini API
+    function sendMessage(forcedText) {
+      var text = forcedText ? forcedText : msg.value;
+      if (!text) return;
 
-      if (xhr.status === 200) {
-        try {
-          var data = JSON.parse(xhr.responseText);
-          addBubble(data.reply ? data.reply : "(empty reply)", "bot");
-        } catch (e) {
-          addBubble("Invalid server response.", "bot");
+      addBubble(text, "me");
+      msg.value = "";
+      sendBtn.disabled = true;
+      var typingRow = addBubble("Pepper is thinking...", "bot");
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", FUNCTION_URL, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          if (typingRow && typingRow.parentNode) typingRow.parentNode.removeChild(typingRow);
+          sendBtn.disabled = false;
+          if (xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText);
+            addBubble(data.reply || "...", "bot");
+          } else {
+            addBubble("Error: Gemini unreachable.", "bot");
+          }
         }
+      };
+      xhr.send(JSON.stringify({ message: text }));
+    }
+
+    // 5. Mic Toggle Logic
+    micBtn.onclick = function() {
+      if (!asr) return;
+      if (!isListening) {
+        isListening = true;
+        micBtn.style.background = "#22c55e"; // Green
+        asr.subscribe("Laurimate");
       } else {
-        addBubble("Server error: " + xhr.status, "bot");
+        stopListening();
       }
+    };
+
+    function stopListening() {
+      isListening = false;
+      micBtn.style.background = "#ef4444"; // Red
+      if (asr) asr.unsubscribe("Laurimate");
     }
-  };
 
-  xhr.onerror = function () {
-    if (typingRow && typingRow.parentNode) {
-      typingRow.parentNode.removeChild(typingRow);
+    // UI Helpers
+    function addBubble(text, who) {
+      var row = document.createElement("div");
+      row.className = "row " + who;
+      var bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.innerHTML = text;
+      row.appendChild(bubble);
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+      if (who === "bot") speakText(text);
+      return row;
     }
-    sendBtn.disabled = false;
-    addBubble("Network error.", "bot");
-  };
 
-  xhr.send(JSON.stringify({ message: text }));
-}
-
-// ---------------------------------
-// Button Events
-// ---------------------------------
-sendBtn.onclick = function () {
-  sendMessage();
-};
-
-msg.onkeypress = function (e) {
-  e = e || window.event;
-  if (e.keyCode === 13) {
-    sendMessage();
-  }
-};
-
-// ---------------------------------
-// Speech Recognition (Microphone)
-// ---------------------------------
-var recognition = null;
-var listening = false;
-
-if ("webkitSpeechRecognition" in window) {
-
-  recognition = new webkitSpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-  recognition.lang = "en-US";
-
-  recognition.onstart = function () {
-    listening = true;
-    micBtn.innerHTML = "🛑";
-    addBubble("Listening...", "bot");
-  };
-
-  recognition.onend = function () {
-    listening = false;
-    micBtn.innerHTML = "🎤";
-  };
-
-  recognition.onresult = function (event) {
-
-    var spoken = event.results[0][0].transcript;
-
-    if (spoken && spoken.length > 0) {
-      sendMessage(spoken);
-    }
-  };
-
-  recognition.onerror = function () {
-    addBubble("Mic error.", "bot");
-  };
-
-  micBtn.onclick = function () {
-
-    if (!recognition) return;
-
-    if (!listening) {
-      try {
-        recognition.start();
-      } catch (e) {}
-    } else {
-      recognition.stop();
-    }
-  };
-
-} else {
-
-  micBtn.disabled = true;
-  micBtn.innerHTML = "No Mic";
-}
-
-// ---------------------------------
-// Welcome Message
-// ---------------------------------
-addBubble("Hi! I'm Laurimate. You can type or press 🎤 to speak.", "bot");
-
-</script>
-
-
-
-
-
+    sendBtn.onclick = function () { sendMessage(); };
+    msg.onkeypress = function (e) { if (e.keyCode === 13) sendMessage(); };
+  </script>
 </body>
-
 </html>

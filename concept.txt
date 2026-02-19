@@ -6,7 +6,7 @@ Final Interaction & UI Concept
 
 Laurimate is designed as a voice-first social robot.
 
-Pepper primarily listens and speaks, while text input is provided as an optional fallback, not the main interaction.
+Pepper primarily listens and speaks
 
 This preserves:
 
@@ -52,6 +52,7 @@ laurimate will write listening
 
 
 3. Language Selection (Global Control)
+
 Placement
 
 Top-right corner
@@ -80,6 +81,7 @@ Language can be changed at any time.
 
 
 4. Primary Interaction Mode: Voice (Default)
+
 UI Layout
 
 Large animated voice bubble in the center
@@ -137,103 +139,10 @@ Example:
 
 
 
-5. Optional Typing Mode (Secondary, Hidden)
-
-Typing is not a separate mode — it is a temporary UI overlay.
-
-Access
-
-Small ⌨️ keyboard icon in the corner
-
-Visible but unobtrusive
-
-Used when:
-
-speech recognition fails
-
-environment is noisy
-
-user prefers typing
 
 
 
-
-
-6. Typing Mode UI (ChatGPT / Messenger Style)
-Design
-
-Clean chat interface
-
-Speech-bubble layout:
-
-User messages on right
-
-Laurimate messages on left
-
-Typing indicator:
-
-animated three dots (…) while processing
-
-Behavior
-
-User types a question
-
-Message appears instantly
-
-Typing dots show while thinking
-
-Pepper still speaks the reply
-
-Text reply appears simultaneously
-
-Typing does not disable voice output.
-
-Example Flow (Typing Mode)
-
-User types:
-
-“Who made you?”
-
-Typing dots appear…
-
-Pepper replies (voice + text):
-
-“I was made by Rakesh and Prasiddha.”
-
-
-
-7. Switching Back to Voice Mode
-
-Keyboard can be closed anytime with the cross button 
-
-Keyboard will go down on closing & UI smoothly transitions back to voice bubble
-
-No session reset required.
-
-Voice interaction remains continuous.
-
-
-
-
-8. Accessibility & UX Considerations
-
-Voice-first interaction supports natural communication.
-
-Text captions improve accessibility.
-
-Typing fallback supports:
-
-hearing-impaired users
-
-international students
-
-noisy or silent spaces
-
-Minimal UI keeps focus on Pepper, not the tablet
-
-
-
-9. Idle & Recovery Behavior
+5. Idle & Recovery Behavior
 
 After inactivity:
 
@@ -247,9 +156,175 @@ If speech not recognized:
 
 “Sorry, could you repeat that?”
 
-Keyboard option remains available at all times in the corner
 
-10. Concept Summary (One-Sentence Pitch)
+
+
+6. Concept Summary (One-Sentence Pitch)
 
 
 Laurimate is a multilingual, voice-first campus assistant for the Pepper robot that provides accurate university information through natural speech interaction, with an optional chat-style typing interface as a fallback.
+
+
+
+Overall Flow with Tablet :
+
+[User speaks] 
+   ↓
+ALSpeechRecognition → Python script 
+   ↓
+Check JSON 
+   ↓
+Python → ALTextToSpeech → Pepper speaks
+Python → ALTabletService → Updates HTML bubble + transcription
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------
+
+
+
+
+1. Use Pepper’s Existing Capabilities
+
+Pepper already has:
+
+NAOqi framework (Python/Choregraphe)
+
+Text-to-speech (TTS) and speech recognition
+
+Tablet display for simple HTML/JS interfaces
+
+Key idea: Leverage Pepper’s built-in modules first, only add AI fallback when needed.
+
+2. Core Architecture (Minimal Coding)
+
+Components:
+
+Voice Input → Pepper speech recognition
+
+Use ALSpeechRecognition module in Python.
+
+Trigger “listening” animation while speech is captured.
+
+Process query → Local JSON Knowledge Base
+
+Simple JSON file with FAQs (e.g., WiFi, library hours).
+
+Minimal Python code: check if the question exists; return answer.
+
+Fallback AI → Gemini / OpenAI API
+
+Only query if JSON has no answer.
+
+Return text answer → send to Pepper TTS for speaking.
+
+UI on tablet → simple HTML page
+
+Voice bubble animations can be CSS-based.
+
+Transcription → update via WebSocket or ALTabletService.
+
+Keyboard overlay → basic HTML chat input.
+
+3. Suggested Minimal Stack
+Component	Suggested Approach
+Voice recognition	Pepper ALSpeechRecognition
+Voice output	Pepper ALTextToSpeech
+Local knowledge	JSON file + Python search
+AI fallback	OpenAI API (text in → text out)
+Tablet interface	Simple HTML/CSS/JS; WebSocket updates
+Animations	CSS animations for breathing, thinking, speaking
+Language switch	Reload Pepper speech recognizer with different language code (en/fi/sv)
+
+This avoids writing a full app from scratch or dealing with complex NLP; most logic is Python + HTML/CSS for the tablet.
+
+4. Minimal Python Flow Example
+from naoqi import ALProxy
+import json
+
+# Connect to Pepper
+tts = ALProxy("ALTextToSpeech", "PEPPER_IP", 9559)
+sr = ALProxy("ALSpeechRecognition", "PEPPER_IP", 9559)
+
+# Load knowledge base
+with open("campus_faq.json") as f:
+    knowledge = json.load(f)
+
+def respond_to_query(query):
+    query_lower = query.lower()
+    if query_lower in knowledge:
+        answer = knowledge[query_lower]
+    else:
+        # Call AI fallback
+        answer = call_gpt(query)  # minimal wrapper for AI API
+    tts.say(answer)
+
+# Example: start listening
+sr.subscribe("Laurimate")
+
+
+All animations and UI are handled separately on the tablet via HTML/CSS, updating the text bubble via WebSocket when respond_to_query() runs.
+
+5. Tablet UI Tips
+
+Keep it one page HTML:
+
+Voice bubble in center (CSS breathing animation)
+
+Live transcription below
+
+Optional keyboard (hidden by default)
+
+Animations like thinking dots and speaking pulses are simple CSS keyframes.
+
+Language selection → just update the query language code for Pepper’s ALSpeechRecognition.
+
+6. Extra Simplifications
+
+Skip typing mode initially; can just use browser alert for fallback.
+
+Preload JSON knowledge for common campus info → AI only for rare queries.
+
+Keep voice-first: user taps once → Pepper listens → processes → speaks.
+
+✅ Summary:
+
+Python for Pepper logic (voice input → JSON lookup → AI fallback → TTS output)
+
+HTML/CSS on tablet for minimal, animated UI (voice bubble, captions, keyboard overlay)
+
+No heavy frameworks needed, just Python + WebSocket + simple HTML/CSS/JS
+
+Scalable: JSON can grow, AI fallback handles anything else
+
+
+
+
+
+https://cloud.aldebaran-robotics.com/manage/robots/36257/ : login page for robot softbank robotics
+
+https://github.com/sunzhida/COMP4461_2017Fall_Lab4?tab=readme-ov-file : GitHub page for making the robot speak
