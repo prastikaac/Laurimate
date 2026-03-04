@@ -4,9 +4,9 @@ Final Interaction & UI Concept
 
 1. Core Design Principle
 
-Laurimate is designed as a voice-first social robot.
+Laurimate is designed as a robot.
 
-Pepper primarily listens and speaks
+Pepper primarily listens and speaks and shows its input and output on display
 
 This preserves:
 
@@ -19,13 +19,14 @@ accessibility in noisy or quiet environments
 
 
 
-2. Welcome Screen & Idle State
+2. Tablet Welcome Screen & Idle State
 
 Visual Design
 
 Full-screen minimal interface
 
 Soft animated background
+
 Laurimate logo
 
 Behavior
@@ -41,7 +42,6 @@ Subtle idle animation
 
 User can:
 
-
 start speaking by tapping on start and 
 
 Central voice bubble (slow breathing animation) appears
@@ -51,36 +51,8 @@ laurimate will write listening
 
 
 
-3. Language Selection (Global Control)
 
-Placement
-
-Top-right corner
-
-Flag icons:
-
-🇬🇧 English
-
-🇫🇮 Finnish
-
-🇸🇪 Swedish
-
-Effect
-
-Changing language updates:
-
-speech recognition language
-
-voice output language
-
-on-screen text captions
-
-Language can be changed at any time.
-
-
-
-
-4. Primary Interaction Mode: Voice (Default)
+3. Primary Interaction Mode: Voice (Default)
 
 UI Layout
 
@@ -142,7 +114,7 @@ Example:
 
 
 
-5. Idle & Recovery Behavior
+4. Idle & Recovery Behavior
 
 After inactivity:
 
@@ -159,7 +131,7 @@ If speech not recognized:
 
 
 
-6. Concept Summary (One-Sentence Pitch)
+5. Concept Summary (One-Sentence Pitch)
 
 
 Laurimate is a multilingual, voice-first campus assistant for the Pepper robot that provides accurate university information through natural speech interaction, with an optional chat-style typing interface as a fallback.
@@ -328,3 +300,15 @@ Scalable: JSON can grow, AI fallback handles anything else
 https://cloud.aldebaran-robotics.com/manage/robots/36257/ : login page for robot softbank robotics
 
 https://github.com/sunzhida/COMP4461_2017Fall_Lab4?tab=readme-ov-file : GitHub page for making the robot speak
+
+
+
+
+Upload the file to robot 
+open cmd and type : scp C:\Users\acer\Documents\Programming\Laurimate\pepper_main.py nao@192.168.0.118:/home/nao/Laurimate/
+put password : Dll#2025
+then it will upload (DO this everytime you edit the file)
+
+
+to play on robot : first login : ssh nao@192.168.0.118
+and then navigate : python2.7 /home/nao/Laurimate/pepper_main.py 

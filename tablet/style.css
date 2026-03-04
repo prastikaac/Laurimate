@@ -1,0 +1,7 @@
+body { font-family: Arial; margin:0; padding:10px; background:#f3f4f6; }
+#chat { max-width:720px; margin:auto; height:90vh; overflow:auto; }
+.bubble { padding:10px 14px; border-radius:12px; margin:5px; max-width:75%; }
+.bot { text-align:left; }
+.me { text-align:right; }
+.bot .bubble { background:#e5e7eb; color:#111; }
+.me .bubble { background:#2563eb; color:#fff; }
