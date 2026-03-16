@@ -312,3 +312,12 @@ then it will upload (DO this everytime you edit the file)
 
 to play on robot : first login : ssh nao@192.168.0.118
 and then navigate : python2.7 /home/nao/Laurimate/pepper_main.py 
+
+
+
+3.16 ma gareko :
+
+1 - robot ma ai ra json file duitai ko response haleko xa tesma tyo hataune ra ai matra rakhne
+2- custom ai generated with the help of gemini api which uses the system prompt to answer and uploaded it to the firebase functions
+3 - tablet design garna parne
+4 - ai lai train garna parne
