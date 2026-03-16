@@ -1,37 +1,360 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Laurimate - Pepper</title>
-<style>
-body { font-family: Arial, sans-serif; background: #f3f4f6; margin: 0; padding: 20px; }
-.wrap { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,.08); overflow: hidden; }
-header { padding: 14px 16px; background: #111827; color: #fff; font-weight: 700; text-align:center; }
-#chat { height: 55vh; overflow: auto; padding: 16px; border-bottom: 1px solid #eee; }
-.row { display: flex; margin: 10px 0; }
-.bot { justify-content: flex-start; }
-.bubble { max-width: 75%; padding: 10px 12px; border-radius: 14px; line-height: 1.35; word-break: break-word; background: #e5e7eb; color: #111827; border-bottom-left-radius: 6px; }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <header>Laurimate - Pepper Campus Assistant</header>
-  <div id="chat"></div>
-</div>
+# -*- coding: utf-8 -*-
+"""
+Laurimate - Campus Assistant
+SoftBank Pepper | NAOqi | Python 2.7
 
-<script>
-function updateBubble(text) {
-    var chat = document.getElementById("chat");
-    var row = document.createElement("div");
-    row.className = "row bot";
-    var bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.innerHTML = text;
-    row.appendChild(bubble);
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
-}
-</script>
-</body>
-</html>
+Flow:
+  1. Any speech detected -> WordRecognized fires with a word + confidence
+  2. Confidence >= 0.40  -> check FAQ first, then Firebase if not found
+  3. Confidence >= 0.15  -> word not clearly heard, send straight to Firebase
+  4. Confidence <  0.15  -> ignore (background noise)
+"""
+
+import os
+import sys
+import time
+import json
+import urllib2
+
+from naoqi import ALProxy, ALModule, ALBroker
+
+# ------------------------------------------------------------------
+# Python 2/3 compat
+# ------------------------------------------------------------------
+try:
+    string_types = (str, unicode)
+except NameError:
+    string_types = (str,)
+
+# ------------------------------------------------------------------
+# Config
+# ------------------------------------------------------------------
+
+PEPPER_IP    = "192.168.0.118"
+PEPPER_PORT  = 9559
+FAQ_PATH     = "/home/nao/Laurimate/campus_faq.json"
+TABLET_URL   = "http://198.18.0.1/apps/laurimate-1e47c7/index.html"
+FIREBASE_URL = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app"
+
+# Confidence bands
+CONF_CLEAR   = 0.40   # heard clearly  -> FAQ then Firebase
+CONF_UNSURE  = 0.15   # heard something -> send straight to Firebase
+
+# ------------------------------------------------------------------
+# NAOqi rule:
+#   global variable name == ALModule name string == subscribeToEvent name
+# ------------------------------------------------------------------
+LaurimateModule = None
+
+# ------------------------------------------------------------------
+# Vocabulary
+# NAOqi can only detect these words. Anything outside this list
+# will still fire WordRecognized but with very low confidence,
+# which we catch and forward to Firebase.
+# ------------------------------------------------------------------
+VOCABULARY = [
+    # greetings
+    "hello", "hi", "hey",
+    "good morning", "good afternoon", "good evening",
+    "how are you",
+    # farewells / thanks
+    "thank you", "thanks", "bye", "goodbye", "see you",
+    # general
+    "help", "what can you do",
+    # wifi
+    "wifi password", "what is the wifi password", "whats the wifi password",
+    "how do i connect to wifi", "internet",
+    # library
+    "library hours", "when does the library open", "when does the library close",
+    "library",
+    # food
+    "canteen menu", "whats for lunch", "food", "canteen", "cafeteria",
+    # navigation
+    "where is the toilet", "where is the bathroom", "where is the restroom",
+    "where is room", "classroom",
+    # services
+    "printing", "how do i print", "student card",
+    "student services", "reception",
+    # campus info
+    "opening hours", "campus hours", "parking", "bus",
+    # safety
+    "emergency",
+]
+
+
+# ------------------------------------------------------------------
+# Knowledge base
+# ------------------------------------------------------------------
+
+def load_faq(path):
+    fallback = {
+        "hello": "Hello! I am Laurimate, your campus assistant. How can I help you?",
+    }
+    if not os.path.isfile(path):
+        print("[Laurimate] FAQ file not found, using fallback.")
+        return fallback
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        faq = {k.lower().strip(): v for k, v in data.items()}
+        print("[Laurimate] Loaded {} FAQ entries.".format(len(faq)))
+        return faq
+    except Exception as e:
+        print("[Laurimate] Could not load FAQ: {}. Using fallback.".format(e))
+        return fallback
+
+
+# ------------------------------------------------------------------
+# Firebase / Gemini
+# ------------------------------------------------------------------
+
+def ask_firebase(question):
+    """
+    POST {"message": question} to Firebase.
+    Returns (reply_string, source_string) or (None, None) on failure.
+    """
+    try:
+        print("[Laurimate] Asking Firebase: '{}'".format(question))
+        payload = json.dumps({"message": question})
+        req = urllib2.Request(
+            FIREBASE_URL,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        response = urllib2.urlopen(req, timeout=10)
+        body = response.read()
+        data = json.loads(body)
+        reply  = data.get("reply", "").strip()
+        source = data.get("source", "ai")
+        print("[Laurimate] Firebase replied ({}): {}".format(source, reply[:80]))
+        return reply if reply else None, source
+    except urllib2.URLError as e:
+        print("[Laurimate] Firebase network error: {}".format(e))
+        return None, None
+    except Exception as e:
+        print("[Laurimate] Firebase error: {}".format(e))
+        return None, None
+
+
+# ------------------------------------------------------------------
+# Tablet + TTS helpers
+# ------------------------------------------------------------------
+
+def set_thinking(tablet_proxy):
+    if tablet_proxy:
+        try:
+            tablet_proxy.executeJS("showThinking();")
+        except Exception:
+            pass
+
+
+def say_and_show(speech_proxy, tts_proxy, tablet_proxy, question, answer, source="faq"):
+    if isinstance(answer, unicode):
+        answer_str = answer.encode("utf-8")
+    else:
+        answer_str = str(answer)
+
+    if isinstance(question, unicode):
+        question_str = question.encode("utf-8")
+    else:
+        question_str = str(question)
+
+    speech_proxy.pause(True)
+    try:
+        q_js = question_str.replace("\\", "\\\\").replace("'", "\\'")
+        a_js = answer_str.replace("\\", "\\\\").replace("'", "\\'")
+
+        if tablet_proxy:
+            try:
+                tablet_proxy.executeJS(
+                    "showAnswer('{}', '{}', '{}');".format(q_js, a_js, source)
+                )
+            except Exception as e:
+                print("[Laurimate] Tablet JS error: {}".format(e))
+
+        tts_proxy.say(answer_str)
+    finally:
+        speech_proxy.pause(False)
+
+
+# ------------------------------------------------------------------
+# Core answer logic (shared by both confidence paths)
+# ------------------------------------------------------------------
+
+def answer_question(word, conf, faq, speech, tts, tablet):
+    """
+    Try FAQ first. If not found, ask Firebase.
+    Used for clearly-heard words (conf >= CONF_CLEAR).
+    """
+    local = faq.get(word)
+    if local:
+        print("[Laurimate] FAQ hit.")
+        say_and_show(speech, tts, tablet, word, local, source="faq")
+        return
+
+    # Not in FAQ -> Firebase
+    print("[Laurimate] No FAQ match, forwarding to Firebase.")
+    set_thinking(tablet)
+    reply, source = ask_firebase(word)
+
+    if reply:
+        say_and_show(speech, tts, tablet, word, reply, source="ai")
+    else:
+        say_and_show(speech, tts, tablet, word,
+                     "I am sorry, I could not find an answer right now. Please ask a staff member.",
+                     source="faq")
+
+
+def answer_via_ai_only(word, faq, speech, tts, tablet):
+    """
+    Word was heard but with low confidence -> skip FAQ, go straight to Firebase.
+    Firebase's own searchCampusFAQ will still check the JSON on the server side.
+    """
+    set_thinking(tablet)
+    reply, source = ask_firebase(word)
+
+    if reply:
+        say_and_show(speech, tts, tablet, word, reply, source="ai")
+    else:
+        say_and_show(speech, tts, tablet, word,
+                     "I am sorry, I did not quite catch that. Could you please repeat?",
+                     source="faq")
+
+
+# ------------------------------------------------------------------
+# Event module
+# ------------------------------------------------------------------
+
+class WordModule(ALModule):
+    """
+    Confidence >= 0.40  -> FAQ lookup, then Firebase if not found
+    Confidence >= 0.15  -> send straight to Firebase (low confidence = unknown word)
+    Confidence <  0.15  -> ignore (noise)
+    """
+
+    def __init__(self, name, faq, tablet_proxy):
+        ALModule.__init__(self, name)
+        self.faq    = faq
+        self.tablet = tablet_proxy
+        self.tts    = ALProxy("ALTextToSpeech",      PEPPER_IP, PEPPER_PORT)
+        self.speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
+
+    def on_word_recognized(self, key, value):
+        if not value or len(value) < 2:
+            return
+
+        # Parse flat [word, conf, word, conf, ...] list
+        pairs = []
+        for i in range(0, len(value) - 1, 2):
+            w = value[i]
+            c = value[i + 1]
+            if isinstance(w, string_types) and isinstance(c, float):
+                pairs.append((w.lower().strip(), c))
+
+        if not pairs:
+            return
+
+        word, conf = max(pairs, key=lambda x: x[1])
+
+        # --- Ignore noise ---
+        if conf < CONF_UNSURE:
+            print("[Laurimate] Noise ignored ({:.0%})".format(conf))
+            return
+
+        print("[Laurimate] Heard: '{}' ({:.0%})".format(word, conf))
+
+        # --- Clearly heard: FAQ then Firebase ---
+        if conf >= CONF_CLEAR:
+            answer_question(word, conf, self.faq, self.speech, self.tts, self.tablet)
+
+        # --- Unsure: skip local FAQ, let Firebase/Gemini interpret ---
+        else:
+            print("[Laurimate] Low confidence, sending to AI.")
+            answer_via_ai_only(word, self.faq, self.speech, self.tts, self.tablet)
+
+
+# ------------------------------------------------------------------
+# Main
+# ------------------------------------------------------------------
+
+def main():
+    global LaurimateModule
+
+    faq = load_faq(FAQ_PATH)
+
+    # 1. Broker first
+    broker = ALBroker("PythonBroker", "0.0.0.0", 0, PEPPER_IP, PEPPER_PORT)
+
+    # 2. Tablet (optional)
+    tablet = None
+    try:
+        tablet = ALProxy("ALTabletService", PEPPER_IP, PEPPER_PORT)
+        tablet.showWebview(TABLET_URL)
+        print("[Laurimate] Tablet showing: {}".format(TABLET_URL))
+    except Exception as e:
+        print("[Laurimate] Tablet not available: {}".format(e))
+
+    # 3. Module
+    LaurimateModule = WordModule("LaurimateModule", faq, tablet)
+
+    # 4. Set vocabulary
+    #    wordSpottingEnabled=True allows Pepper to detect speech
+    #    outside the vocabulary too (fires with low confidence)
+    speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
+    speech.pause(True)
+    speech.setVocabulary(VOCABULARY, True)   # <-- True enables word spotting
+    speech.pause(False)
+
+    # 5. Subscribe event
+    memory = ALProxy("ALMemory", PEPPER_IP, PEPPER_PORT)
+    memory.subscribeToEvent(
+        "WordRecognized",
+        "LaurimateModule",
+        "on_word_recognized",
+    )
+
+    # 6. Start recognition engine
+    speech.subscribe("Laurimate")
+
+    # 7. Welcome
+    tts = ALProxy("ALTextToSpeech", PEPPER_IP, PEPPER_PORT)
+    if tablet:
+        try:
+            tablet.executeJS("showWelcome();")
+        except Exception:
+            pass
+
+    speech.pause(True)
+    tts.say("Hello! I am Laurimate, your campus assistant. How can I help you?")
+    speech.pause(False)
+
+    print("[Laurimate] Listening. Press Ctrl+C to stop.")
+
+    # 8. Keep alive
+    try:
+        while True:
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("\n[Laurimate] Shutting down...")
+
+    finally:
+        try:
+            memory.unsubscribeToEvent("WordRecognized", "LaurimateModule")
+        except Exception:
+            pass
+        try:
+            speech.unsubscribe("Laurimate")
+        except Exception:
+            pass
+        if tablet:
+            try:
+                tablet.hideWebview()
+            except Exception:
+                pass
+        broker.shutdown()
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
