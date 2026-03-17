@@ -128,3 +128,5 @@ exports.chatWithGemini = onRequest(
     }
   }
 );
+
+// firebase deploy --only functions

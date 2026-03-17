@@ -4,15 +4,16 @@ Laurimate - Campus Assistant
 SoftBank Pepper | NAOqi | Python 2.7
 
 Flow:
-  1. Hear keyword
-  2. Look up campus_faq.json  -> answer immediately if found
-  3. Otherwise POST to Firebase / Gemini -> speak + show AI answer
+  1. Hear keyword (confidence >= 0.40)
+  2. Strip word-spotting tags  <...> word <...>  ->  word
+  3. POST to Firebase / Gemini -> speak + show AI answer
 """
 
 import os
 import sys
 import time
 import json
+import re
 import urllib2
 
 from naoqi import ALProxy, ALModule, ALBroker
@@ -31,7 +32,6 @@ except NameError:
 
 PEPPER_IP    = "192.168.0.118"
 PEPPER_PORT  = 9559
-FAQ_PATH     = "/home/nao/Laurimate/campus_faq.json"
 TABLET_URL   = "http://198.18.0.1/apps/laurimate-1e47c7/index.html"
 FIREBASE_URL = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app"
 
@@ -62,40 +62,6 @@ VOCABULARY = [
     "opening hours", "campus hours", "parking", "bus",
     "emergency",
 ]
-
-# Instant responses — no network call needed
-INSTANT_CACHE = {
-    "hello":     "Hello! I am Laurimate, your campus assistant. How can I help you?",
-    "hi":        "Hi there! How can I help you today?",
-    "hey":       "Hey! What can I help you with?",
-    "thank you": "You are welcome! Is there anything else I can help you with?",
-    "thanks":    "Happy to help! Let me know if you need anything else.",
-    "bye":       "Goodbye! Have a wonderful day!",
-    "goodbye":   "See you later! Have a great day!",
-    "see you":   "Take care! Have a great day!",
-}
-
-
-# ------------------------------------------------------------------
-# Knowledge base
-# ------------------------------------------------------------------
-
-def load_faq(path):
-    fallback = {
-        "hello": "Hello! I am Laurimate, your campus assistant. How can I help you?",
-    }
-    if not os.path.isfile(path):
-        print("[Laurimate] FAQ file not found, using fallback.")
-        return fallback
-    try:
-        with open(path, "r") as f:
-            data = json.load(f)
-        faq = {k.lower().strip(): v for k, v in data.items()}
-        print("[Laurimate] Loaded {} FAQ entries.".format(len(faq)))
-        return faq
-    except Exception as e:
-        print("[Laurimate] Could not load FAQ: {}. Using fallback.".format(e))
-        return fallback
 
 
 # ------------------------------------------------------------------
@@ -172,7 +138,7 @@ def set_thinking(tablet_proxy):
             pass
 
 
-def say_and_show(speech_proxy, tts_proxy, tablet_proxy, question, answer, source="faq"):
+def say_and_show(speech_proxy, tts_proxy, tablet_proxy, question, answer, source="ai"):
     if isinstance(answer, unicode):
         answer_str = answer.encode("utf-8")
     else:
@@ -207,14 +173,12 @@ def say_and_show(speech_proxy, tts_proxy, tablet_proxy, question, answer, source
 
 class WordModule(ALModule):
     """
-    Confidence >= 0.40  -> instant cache, then FAQ, then Firebase
-    Confidence >= 0.15  -> send straight to Firebase (low conf = unknown word)
-    Confidence <  0.15  -> ignore (noise)
+    Confidence >= 0.40  -> strip tags, send to Firebase
+    Confidence <  0.40  -> ignore (noise)
     """
 
-    def __init__(self, name, faq, tablet_proxy):
+    def __init__(self, name, tablet_proxy):
         ALModule.__init__(self, name)
-        self.faq    = faq
         self.tablet = tablet_proxy
         self.tts    = ALProxy("ALTextToSpeech",      PEPPER_IP, PEPPER_PORT)
         self.speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
@@ -233,31 +197,20 @@ class WordModule(ALModule):
         if not pairs:
             return
 
-        word, conf = max(pairs, key=lambda x: x[1])
+        raw_word, conf = max(pairs, key=lambda x: x[1])
 
-        if conf < 0.15:
-            return  # noise
+        if conf < 0.40:
+            return  # noise or low confidence
+
+        # Strip word-spotting tags: "<...> hello <...>" -> "hello"
+        word = re.sub(r'<[^>]*>', '', raw_word).strip()
+
+        if not word:
+            return
 
         print("[Laurimate] Heard: '{}' ({:.0%})".format(word, conf))
 
-        if conf >= 0.40:
-            # 1. Instant cache
-            instant = INSTANT_CACHE.get(word)
-            if instant:
-                print("[Laurimate] Instant cache hit.")
-                say_and_show(self.speech, self.tts, self.tablet,
-                             word, instant, source="faq")
-                return
-
-            # 2. Local FAQ
-            answer = self.faq.get(word)
-            if answer:
-                print("[Laurimate] FAQ hit.")
-                say_and_show(self.speech, self.tts, self.tablet,
-                             word, answer, source="faq")
-                return
-
-        # 3. Firebase / Gemini (low confidence OR not in FAQ)
+        # Always ask Firebase / Gemini
         print("[Laurimate] Asking Firebase...")
         set_thinking(self.tablet)
         reply, source = ask_firebase(word)
@@ -278,8 +231,6 @@ class WordModule(ALModule):
 def main():
     global LaurimateModule
 
-    faq = load_faq(FAQ_PATH)
-
     # 1. Broker first
     broker = ALBroker("PythonBroker", "0.0.0.0", 0, PEPPER_IP, PEPPER_PORT)
 
@@ -293,7 +244,7 @@ def main():
         print("[Laurimate] Tablet not available: {}".format(e))
 
     # 3. Module
-    LaurimateModule = WordModule("LaurimateModule", faq, tablet)
+    LaurimateModule = WordModule("LaurimateModule", tablet)
 
     # 4. Set up speech recognition safely (handles stale grammar error)
     speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
