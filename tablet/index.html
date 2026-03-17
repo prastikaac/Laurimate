@@ -1,360 +1,657 @@
-# -*- coding: utf-8 -*-
-"""
-Laurimate - Campus Assistant
-SoftBank Pepper | NAOqi | Python 2.7
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laurimate</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700');
 
-Flow:
-  1. Any speech detected -> WordRecognized fires with a word + confidence
-  2. Confidence >= 0.40  -> check FAQ first, then Firebase if not found
-  3. Confidence >= 0.15  -> word not clearly heard, send straight to Firebase
-  4. Confidence <  0.15  -> ignore (background noise)
-"""
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-import os
-import sys
-import time
-import json
-import urllib2
-
-from naoqi import ALProxy, ALModule, ALBroker
-
-# ------------------------------------------------------------------
-# Python 2/3 compat
-# ------------------------------------------------------------------
-try:
-    string_types = (str, unicode)
-except NameError:
-    string_types = (str,)
-
-# ------------------------------------------------------------------
-# Config
-# ------------------------------------------------------------------
-
-PEPPER_IP    = "192.168.0.118"
-PEPPER_PORT  = 9559
-FAQ_PATH     = "/home/nao/Laurimate/campus_faq.json"
-TABLET_URL   = "http://198.18.0.1/apps/laurimate-1e47c7/index.html"
-FIREBASE_URL = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app"
-
-# Confidence bands
-CONF_CLEAR   = 0.40   # heard clearly  -> FAQ then Firebase
-CONF_UNSURE  = 0.15   # heard something -> send straight to Firebase
-
-# ------------------------------------------------------------------
-# NAOqi rule:
-#   global variable name == ALModule name string == subscribeToEvent name
-# ------------------------------------------------------------------
-LaurimateModule = None
-
-# ------------------------------------------------------------------
-# Vocabulary
-# NAOqi can only detect these words. Anything outside this list
-# will still fire WordRecognized but with very low confidence,
-# which we catch and forward to Firebase.
-# ------------------------------------------------------------------
-VOCABULARY = [
-    # greetings
-    "hello", "hi", "hey",
-    "good morning", "good afternoon", "good evening",
-    "how are you",
-    # farewells / thanks
-    "thank you", "thanks", "bye", "goodbye", "see you",
-    # general
-    "help", "what can you do",
-    # wifi
-    "wifi password", "what is the wifi password", "whats the wifi password",
-    "how do i connect to wifi", "internet",
-    # library
-    "library hours", "when does the library open", "when does the library close",
-    "library",
-    # food
-    "canteen menu", "whats for lunch", "food", "canteen", "cafeteria",
-    # navigation
-    "where is the toilet", "where is the bathroom", "where is the restroom",
-    "where is room", "classroom",
-    # services
-    "printing", "how do i print", "student card",
-    "student services", "reception",
-    # campus info
-    "opening hours", "campus hours", "parking", "bus",
-    # safety
-    "emergency",
-]
-
-
-# ------------------------------------------------------------------
-# Knowledge base
-# ------------------------------------------------------------------
-
-def load_faq(path):
-    fallback = {
-        "hello": "Hello! I am Laurimate, your campus assistant. How can I help you?",
+    html, body {
+      width: 100%; height: 100%;
+      background-color: #0a0e1a;
+      font-family: 'Poppins', 'Open Sans', Arial, sans-serif;
+      color: #e2e8f0;
+      overflow: hidden;
     }
-    if not os.path.isfile(path):
-        print("[Laurimate] FAQ file not found, using fallback.")
-        return fallback
-    try:
-        with open(path, "r") as f:
-            data = json.load(f)
-        faq = {k.lower().strip(): v for k, v in data.items()}
-        print("[Laurimate] Loaded {} FAQ entries.".format(len(faq)))
-        return faq
-    except Exception as e:
-        print("[Laurimate] Could not load FAQ: {}. Using fallback.".format(e))
-        return fallback
 
+    /* Grid background fallback */
+    body::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background-image:
+        linear-gradient(#1e2d45 1px, transparent 1px),
+        linear-gradient(90deg, #1e2d45 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.3;
+      pointer-events: none;
+    }
 
-# ------------------------------------------------------------------
-# Firebase / Gemini
-# ------------------------------------------------------------------
+    /* Top glow fallback */
+    body::after {
+      content: '';
+      position: absolute;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56,189,248,0.08) 0%, transparent 70%);
+      top: -200px; left: 50%;
+      margin-left: -300px;
+      pointer-events: none;
+    }
 
-def ask_firebase(question):
-    """
-    POST {"message": question} to Firebase.
-    Returns (reply_string, source_string) or (None, None) on failure.
-    """
-    try:
-        print("[Laurimate] Asking Firebase: '{}'".format(question))
-        payload = json.dumps({"message": question})
-        req = urllib2.Request(
-            FIREBASE_URL,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        response = urllib2.urlopen(req, timeout=10)
-        body = response.read()
-        data = json.loads(body)
-        reply  = data.get("reply", "").strip()
-        source = data.get("source", "ai")
-        print("[Laurimate] Firebase replied ({}): {}".format(source, reply[:80]))
-        return reply if reply else None, source
-    except urllib2.URLError as e:
-        print("[Laurimate] Firebase network error: {}".format(e))
-        return None, None
-    except Exception as e:
-        print("[Laurimate] Firebase error: {}".format(e))
-        return None, None
+    /* ── Page layout ── */
+    .page {
+      position: relative; z-index: 1;
+      width: 100%; height: 100%;
+    }
 
+    /* ═══════════════════════════════
+       TOP — header
+    ═══════════════════════════════ */
+    .header {
+      position: absolute;
+      top: 36px; left: 0; right: 0;
+      display: -webkit-flex; display: flex;
+      -webkit-flex-direction: column; flex-direction: column;
+      -webkit-align-items: center; align-items: center;
+      z-index: 10;
+    }
 
-# ------------------------------------------------------------------
-# Tablet + TTS helpers
-# ------------------------------------------------------------------
+    .brand {
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+    }
 
-def set_thinking(tablet_proxy):
-    if tablet_proxy:
-        try:
-            tablet_proxy.executeJS("showThinking();")
-        except Exception:
-            pass
+    .brand-icon {
+      width: 54px; height: 54px;
+      border-radius: 15px;
+      background: #818cf8; /* Fallback */
+      background: -webkit-linear-gradient(135deg, #38bdf8, #818cf8);
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+      -webkit-justify-content: center; justify-content: center;
+      font-size: 24px; color: white;
+      box-shadow: 0 0 28px rgba(56,189,248,0.4);
+      margin-right: 14px;
+    }
 
+    .brand-name {
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: #38bdf8; /* Fallback */
+      background: -webkit-linear-gradient(90deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
 
-def say_and_show(speech_proxy, tts_proxy, tablet_proxy, question, answer, source="faq"):
-    if isinstance(answer, unicode):
-        answer_str = answer.encode("utf-8")
-    else:
-        answer_str = str(answer)
+    .byline {
+      font-size: 13px;
+      font-weight: 300;
+      color: #64748b;
+      letter-spacing: 1px;
+    }
 
-    if isinstance(question, unicode):
-        question_str = question.encode("utf-8")
-    else:
-        question_str = str(question)
+    /* ═══════════════════════════════
+       CENTER — voice bubble
+    ═══════════════════════════════ */
+    .bubble-area {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: -webkit-flex; display: flex;
+      -webkit-flex-direction: column; flex-direction: column;
+      -webkit-align-items: center; align-items: center;
+      -webkit-justify-content: center; justify-content: center;
+      z-index: 5;
+    }
 
-    speech_proxy.pause(True)
-    try:
-        q_js = question_str.replace("\\", "\\\\").replace("'", "\\'")
-        a_js = answer_str.replace("\\", "\\\\").replace("'", "\\'")
+    /* Wave rings (for listening state) */
+    .wave-rings {
+      position: absolute;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      pointer-events: none;
+    }
 
-        if tablet_proxy:
-            try:
-                tablet_proxy.executeJS(
-                    "showAnswer('{}', '{}', '{}');".format(q_js, a_js, source)
-                )
-            except Exception as e:
-                print("[Laurimate] Tablet JS error: {}".format(e))
+    .wave {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid #38bdf8;
+      opacity: 0;
+      top: 50%; left: 50%;
+      margin-top: -100px; margin-left: -100px;
+      width: 200px; height: 200px;
+    }
 
-        tts_proxy.say(answer_str)
-    finally:
-        speech_proxy.pause(False)
+    /* Bubble wrapper (handles ripple overflow) */
+    .bubble-wrap {
+      position: relative;
+      width: 200px; height: 200px;
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+      -webkit-justify-content: center; justify-content: center;
+      margin-top: 20px;
+    }
 
+    /* Main bubble */
+    .bubble {
+      position: relative; z-index: 2;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background-color: rgba(56,189,248,0.15); /* Solid fallback */
+      background: -webkit-radial-gradient(38% 38%, circle, rgba(56,189,248,0.22), rgba(129,140,248,0.12));
+      border: 2px solid rgba(56,189,248,0.4);
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+      -webkit-justify-content: center; justify-content: center;
+      box-shadow: 0 0 0 0 rgba(56,189,248,0.3), inset 0 0 40px rgba(56,189,248,0.08);
+      -webkit-transition: border-color 0.5s, box-shadow 0.5s;
+      transition: border-color 0.5s, box-shadow 0.5s;
+    }
 
-# ------------------------------------------------------------------
-# Core answer logic (shared by both confidence paths)
-# ------------------------------------------------------------------
+    .mic-icon {
+      font-size: 40px;
+      color: #e2e8f0;
+    }
 
-def answer_question(word, conf, faq, speech, tts, tablet):
-    """
-    Try FAQ first. If not found, ask Firebase.
-    Used for clearly-heard words (conf >= CONF_CLEAR).
-    """
-    local = faq.get(word)
-    if local:
-        print("[Laurimate] FAQ hit.")
-        say_and_show(speech, tts, tablet, word, local, source="faq")
-        return
+    /* ── Idle state: heartbeat double-thump ── */
+    .bubble.idle { -webkit-animation: idle-heartbeat 2s ease-in-out infinite; animation: idle-heartbeat 2s ease-in-out infinite; }
+    @-webkit-keyframes idle-heartbeat {
+      0%, 40%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.25), inset 0 0 40px rgba(56,189,248,0.06); -webkit-transform: scale(1); transform: scale(1); }
+      10% { box-shadow: 0 0 0 12px rgba(56,189,248,0.0), inset 0 0 50px rgba(56,189,248,0.1); -webkit-transform: scale(1.05); transform: scale(1.05); }
+      25% { box-shadow: 0 0 0 20px rgba(56,189,248,0.0), inset 0 0 60px rgba(56,189,248,0.12); -webkit-transform: scale(1.08); transform: scale(1.08); }
+    }
+    @keyframes idle-heartbeat {
+      0%, 40%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.25), inset 0 0 40px rgba(56,189,248,0.06); transform: scale(1); }
+      10% { box-shadow: 0 0 0 12px rgba(56,189,248,0.0), inset 0 0 50px rgba(56,189,248,0.1); transform: scale(1.05); }
+      25% { box-shadow: 0 0 0 20px rgba(56,189,248,0.0), inset 0 0 60px rgba(56,189,248,0.12); transform: scale(1.08); }
+    }
 
-    # Not in FAQ -> Firebase
-    print("[Laurimate] No FAQ match, forwarding to Firebase.")
-    set_thinking(tablet)
-    reply, source = ask_firebase(word)
+    /* ── Listening state: expanding sound waves ── */
+    .bubble.listening {
+      border-color: rgba(56,189,248,0.8);
+      box-shadow: 0 0 30px rgba(56,189,248,0.35), inset 0 0 40px rgba(56,189,248,0.1);
+      -webkit-animation: none;
+      animation: none;
+    }
 
-    if reply:
-        say_and_show(speech, tts, tablet, word, reply, source="ai")
-    else:
-        say_and_show(speech, tts, tablet, word,
-                     "I am sorry, I could not find an answer right now. Please ask a staff member.",
-                     source="faq")
+    .wave.listening { -webkit-animation: wave-expand 2s ease-out infinite; animation: wave-expand 2s ease-out infinite; }
+    .wave.listening:nth-child(2) { -webkit-animation-delay: 0.55s; animation-delay: 0.55s; }
+    .wave.listening:nth-child(3) { -webkit-animation-delay: 1.1s; animation-delay: 1.1s; }
 
+    @-webkit-keyframes wave-expand {
+      0%   { opacity: 0.7; -webkit-transform: scale(1); transform: scale(1);  }
+      100% { opacity: 0;   -webkit-transform: scale(2.2); transform: scale(2.2); }
+    }
+    @keyframes wave-expand {
+      0%   { opacity: 0.7; transform: scale(1);  }
+      100% { opacity: 0;   transform: scale(2.2); }
+    }
 
-def answer_via_ai_only(word, faq, speech, tts, tablet):
-    """
-    Word was heard but with low confidence -> skip FAQ, go straight to Firebase.
-    Firebase's own searchCampusFAQ will still check the JSON on the server side.
-    """
-    set_thinking(tablet)
-    reply, source = ask_firebase(word)
+    /* ── Thinking state: spinning ring of dots ── */
+    .bubble.thinking {
+      border-color: rgba(251,191,36,0.5);
+      box-shadow: 0 0 30px rgba(251,191,36,0.2), inset 0 0 40px rgba(251,191,36,0.06);
+      -webkit-animation: none;
+      animation: none;
+    }
 
-    if reply:
-        say_and_show(speech, tts, tablet, word, reply, source="ai")
-    else:
-        say_and_show(speech, tts, tablet, word,
-                     "I am sorry, I did not quite catch that. Could you please repeat?",
-                     source="faq")
+    .think-orbit {
+      position: absolute;
+      width: 210px; height: 210px;
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      margin-top: -105px; margin-left: -105px;
+      -webkit-animation: orbit-spin 1.8s linear infinite;
+      animation: orbit-spin 1.8s linear infinite;
+      pointer-events: none;
+    }
 
+    .think-orbit::before {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: #fbbf24;
+      top: -6px; left: 50%;
+      margin-left: -6px;
+      box-shadow: 0 0 10px rgba(251,191,36,0.8);
+    }
 
-# ------------------------------------------------------------------
-# Event module
-# ------------------------------------------------------------------
+    @-webkit-keyframes orbit-spin { to { -webkit-transform: rotate(360deg); transform: rotate(360deg); } }
+    @keyframes orbit-spin { to { transform: rotate(360deg); } }
 
-class WordModule(ALModule):
-    """
-    Confidence >= 0.40  -> FAQ lookup, then Firebase if not found
-    Confidence >= 0.15  -> send straight to Firebase (low confidence = unknown word)
-    Confidence <  0.15  -> ignore (noise)
-    """
+    /* ── Speaking state: fast pulse ── */
+    .bubble.speaking {
+      border-color: rgba(129,140,248,0.8);
+      box-shadow: 0 0 35px rgba(129,140,248,0.4), inset 0 0 50px rgba(129,140,248,0.12);
+      -webkit-animation: speak-pulse 0.8s ease-in-out infinite;
+      animation: speak-pulse 0.8s ease-in-out infinite;
+    }
 
-    def __init__(self, name, faq, tablet_proxy):
-        ALModule.__init__(self, name)
-        self.faq    = faq
-        self.tablet = tablet_proxy
-        self.tts    = ALProxy("ALTextToSpeech",      PEPPER_IP, PEPPER_PORT)
-        self.speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
+    @-webkit-keyframes speak-pulse {
+      0%, 100% { -webkit-transform: scale(1); transform: scale(1); box-shadow: 0 0 35px rgba(129,140,248,0.35), inset 0 0 50px rgba(129,140,248,0.10); }
+      50%       { -webkit-transform: scale(1.06); transform: scale(1.06); box-shadow: 0 0 55px rgba(129,140,248,0.60), inset 0 0 70px rgba(129,140,248,0.18); }
+    }
+    @keyframes speak-pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 35px rgba(129,140,248,0.35), inset 0 0 50px rgba(129,140,248,0.10); }
+      50%       { transform: scale(1.06); box-shadow: 0 0 55px rgba(129,140,248,0.60), inset 0 0 70px rgba(129,140,248,0.18); }
+    }
 
-    def on_word_recognized(self, key, value):
-        if not value or len(value) < 2:
-            return
+    /* ═══════════════════════════════
+       STATUS PILL
+    ═══════════════════════════════ */
+    .status-pill {
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+      font-size: 13px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: #64748b;
+      padding: 7px 18px;
+      border: 1px solid #1e2d45;
+      border-radius: 100px;
+      background: #111827;
+      -webkit-transition: color 0.4s, border-color 0.4s, background 0.4s;
+      transition: color 0.4s, border-color 0.4s, background 0.4s;
+    }
 
-        # Parse flat [word, conf, word, conf, ...] list
-        pairs = []
-        for i in range(0, len(value) - 1, 2):
-            w = value[i]
-            c = value[i + 1]
-            if isinstance(w, string_types) and isinstance(c, float):
-                pairs.append((w.lower().strip(), c))
+    .status-pill.idle      { color: #64748b; border-color: #1e2d45; }
+    .status-pill.listening { color: #38bdf8; border-color: rgba(56,189,248,0.5); background: rgba(56,189,248,0.06); }
+    .status-pill.thinking  { color: #fbbf24; border-color: rgba(251,191,36,0.5); background: rgba(251,191,36,0.06); }
+    .status-pill.speaking  { color: #818cf8; border-color: rgba(129,140,248,0.5); background: rgba(129,140,248,0.06); }
 
-        if not pairs:
-            return
+    .pill-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      margin-right: 8px;
+    }
+    .status-pill.listening .pill-dot { -webkit-animation: blink-dot 1s ease-in-out infinite; animation: blink-dot 1s ease-in-out infinite; }
+    .status-pill.thinking  .pill-dot { -webkit-animation: blink-dot 0.5s ease-in-out infinite; animation: blink-dot 0.5s ease-in-out infinite; }
+    .status-pill.speaking  .pill-dot { -webkit-animation: blink-dot 0.7s ease-in-out infinite; animation: blink-dot 0.7s ease-in-out infinite; }
 
-        word, conf = max(pairs, key=lambda x: x[1])
+    @-webkit-keyframes blink-dot {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.2; }
+    }
+    @keyframes blink-dot {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.2; }
+    }
 
-        # --- Ignore noise ---
-        if conf < CONF_UNSURE:
-            print("[Laurimate] Noise ignored ({:.0%})".format(conf))
-            return
+    /* ═══════════════════════════════
+       BOTTOM — caption area
+    ═══════════════════════════════ */
+    .caption-area {
+      position: absolute;
+      bottom: 32px; left: 0; right: 0;
+      width: 100%;
+      min-height: 100px;
+      display: -webkit-flex; display: flex;
+      -webkit-flex-direction: column; flex-direction: column;
+      -webkit-align-items: center; align-items: center;
+      text-align: center;
+      z-index: 10;
+    }
 
-        print("[Laurimate] Heard: '{}' ({:.0%})".format(word, conf))
+    .caption-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
 
-        # --- Clearly heard: FAQ then Firebase ---
-        if conf >= CONF_CLEAR:
-            answer_question(word, conf, self.faq, self.speech, self.tts, self.tablet)
+    .caption-transcript {
+      font-size: 17px;
+      font-weight: 600;
+      color: #38bdf8;
+      min-height: 24px;
+      margin-bottom: 8px;
+    }
 
-        # --- Unsure: skip local FAQ, let Firebase/Gemini interpret ---
-        else:
-            print("[Laurimate] Low confidence, sending to AI.")
-            answer_via_ai_only(word, self.faq, self.speech, self.tts, self.tablet)
+    .caption-answer {
+      font-size: 16px;
+      font-weight: 300;
+      color: #cbd5e1;
+      line-height: 1.5;
+      min-height: 24px;
+    }
 
+    .source-badge {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+      padding: 4px 12px; border-radius: 100px;
+      margin-top: 12px;
+      opacity: 0;
+      -webkit-transition: opacity 0.4s;
+      transition: opacity 0.4s;
+    }
+    .source-badge.visible { opacity: 1; }
+    .source-badge.faq { background: rgba(56,189,248,0.12);  color: #38bdf8; }
+    .source-badge.ai  { background: rgba(129,140,248,0.12); color: #818cf8; }
 
-# ------------------------------------------------------------------
-# Main
-# ------------------------------------------------------------------
+    /* ── Idle instruction panel ── */
+    .idle-panel {
+      display: -webkit-flex; display: flex;
+      -webkit-flex-direction: column; flex-direction: column;
+      -webkit-align-items: center; align-items: center;
+      width: 100%; max-width: 700px;
+      -webkit-transition: opacity 0.4s;
+      transition: opacity 0.4s;
+    }
+    .idle-panel.hidden { opacity: 0; pointer-events: none; }
 
-def main():
-    global LaurimateModule
+    .how-row {
+      display: -webkit-flex; display: flex;
+      width: 100%;
+      -webkit-justify-content: center; justify-content: center;
+      margin-bottom: 20px;
+    }
 
-    faq = load_faq(FAQ_PATH)
+    .how-step {
+      width: 190px;
+      background: #111827;
+      border: 1px solid #1e2d45;
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: -webkit-flex; display: flex;
+      -webkit-flex-direction: column; flex-direction: column;
+      -webkit-align-items: center; align-items: center;
+      text-align: center;
+      margin: 0 5px;
+    }
+    .how-step .step-icon { font-size: 24px; margin-bottom: 6px; }
+    .how-step .step-title { font-size: 12px; font-weight: 700; color: #38bdf8; letter-spacing: 1px; margin-bottom: 4px; }
+    .how-step .step-desc  { font-size: 11px; font-weight: 300; color: #64748b; line-height: 1.3; }
 
-    # 1. Broker first
-    broker = ALBroker("PythonBroker", "0.0.0.0", 0, PEPPER_IP, PEPPER_PORT)
+    .trigger-heading {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
 
-    # 2. Tablet (optional)
-    tablet = None
-    try:
-        tablet = ALProxy("ALTabletService", PEPPER_IP, PEPPER_PORT)
-        tablet.showWebview(TABLET_URL)
-        print("[Laurimate] Tablet showing: {}".format(TABLET_URL))
-    except Exception as e:
-        print("[Laurimate] Tablet not available: {}".format(e))
+    /* Fixed chip grid layout for older branch */
+    .chip-grid {
+      text-align: center;
+      margin-bottom: 12px;
+    }
 
-    # 3. Module
-    LaurimateModule = WordModule("LaurimateModule", faq, tablet)
+    .chip {
+      display: inline-block;
+      font-size: 12px; font-weight: 500;
+      padding: 6px 14px; border-radius: 100px;
+      border: 1px solid #1e2d45;
+      color: #64748b;
+      background: #111827;
+      margin: 4px;
+    }
+    .chip.instant {
+      border-color: rgba(52,211,153,0.4);
+      color: #6ee7b7;
+      background: rgba(52,211,153,0.07);
+    }
+    .legend {
+      font-size: 11px; color: #64748b;
+      display: -webkit-flex; display: flex;
+      -webkit-justify-content: center; justify-content: center;
+    }
+    .legend span { 
+      display: -webkit-flex; display: flex; 
+      -webkit-align-items: center; align-items: center; 
+      margin: 0 10px;
+    }
+    .legend-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      margin-right: 6px;
+    }
+    .legend-dot.green { background: #6ee7b7; }
+    .legend-dot.blue  { background: #64748b; }
+  </style>
+</head>
+<body>
+<div class="page">
 
-    # 4. Set vocabulary
-    #    wordSpottingEnabled=True allows Pepper to detect speech
-    #    outside the vocabulary too (fires with low confidence)
-    speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
-    speech.pause(True)
-    speech.setVocabulary(VOCABULARY, True)   # <-- True enables word spotting
-    speech.pause(False)
+  <!-- ── HEADER ── -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">🎓</div>
+      <div class="brand-name">Laurimate</div>
+    </div>
+    <div class="byline">Built by Rakesh &amp; Prasiddha · Laurea University of Applied Sciences</div>
+  </div>
 
-    # 5. Subscribe event
-    memory = ALProxy("ALMemory", PEPPER_IP, PEPPER_PORT)
-    memory.subscribeToEvent(
-        "WordRecognized",
-        "LaurimateModule",
-        "on_word_recognized",
-    )
+  <!-- ── VOICE BUBBLE ── -->
+  <div class="bubble-area">
 
-    # 6. Start recognition engine
-    speech.subscribe("Laurimate")
+    <!-- Status pill -->
+    <div class="status-pill idle" id="status-pill">
+      <div class="pill-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
 
-    # 7. Welcome
-    tts = ALProxy("ALTextToSpeech", PEPPER_IP, PEPPER_PORT)
-    if tablet:
-        try:
-            tablet.executeJS("showWelcome();")
-        except Exception:
-            pass
+    <!-- Bubble + wave rings -->
+    <div class="bubble-wrap">
+      <!-- Expanding wave rings (listening) -->
+      <div class="wave-rings" id="wave-rings">
+        <div class="wave" id="w1"></div>
+        <div class="wave" id="w2"></div>
+        <div class="wave" id="w3"></div>
+      </div>
 
-    speech.pause(True)
-    tts.say("Hello! I am Laurimate, your campus assistant. How can I help you?")
-    speech.pause(False)
+      <!-- Thinking orbit ring -->
+      <div class="think-orbit" id="think-orbit" style="display:none;"></div>
 
-    print("[Laurimate] Listening. Press Ctrl+C to stop.")
+      <!-- Main bubble -->
+      <div class="bubble idle" id="bubble">
+        <div class="mic-icon" id="mic-icon">&#127897;</div>
+      </div>
+    </div>
+  </div>
 
-    # 8. Keep alive
-    try:
-        while True:
-            time.sleep(1)
+  <!-- ── CAPTION ── -->
+  <div class="caption-area">
 
-    except KeyboardInterrupt:
-        print("\n[Laurimate] Shutting down...")
+    <!-- IDLE: instruction panel -->
+    <div class="idle-panel" id="idle-panel">
 
-    finally:
-        try:
-            memory.unsubscribeToEvent("WordRecognized", "LaurimateModule")
-        except Exception:
-            pass
-        try:
-            speech.unsubscribe("Laurimate")
-        except Exception:
-            pass
-        if tablet:
-            try:
-                tablet.hideWebview()
-            except Exception:
-                pass
-        broker.shutdown()
-        sys.exit(0)
+      <!-- How it works: 3 steps -->
+      <div class="how-row">
+        <div class="how-step">
+          <div class="step-icon">💬</div>
+          <div class="step-title">1 · Say a trigger word</div>
+          <div class="step-desc">Speak any word below clearly &mdash; I'll wake up instantly</div>
+        </div>
+        <div class="how-step">
+          <div class="step-icon">🎙️</div>
+          <div class="step-title">2 · Ask your question</div>
+          <div class="step-desc">Say your full question &mdash; I'll listen until you go quiet</div>
+        </div>
+        <div class="how-step">
+          <div class="step-icon">🔔</div>
+          <div class="step-title">3 · I'll answer you</div>
+          <div class="step-desc">I speak the answer aloud and show it on screen</div>
+        </div>
+      </div>
 
+      <!-- Trigger words -->
+      <div class="trigger-heading">Say one of these words to start</div>
 
-if __name__ == "__main__":
-    main()
+      <div class="chip-grid">
+        <!-- Instant (green) -->
+        <span class="chip instant">Hello</span>
+        <span class="chip instant">Hi</span>
+        <span class="chip instant">Hey</span>
+        <span class="chip instant">Hey Laurimate</span>
+        <span class="chip instant">Thank you</span>
+        <span class="chip instant">Bye</span>
+        <!-- AI-answered -->
+        <span class="chip">WiFi</span>
+        <span class="chip">Library</span>
+        <span class="chip">Canteen</span>
+        <span class="chip">Printing</span>
+        <span class="chip">Toilet</span>
+        <span class="chip">Classroom</span>
+        <span class="chip">Bus</span>
+        <span class="chip">Parking</span>
+        <span class="chip">Student card</span>
+        <span class="chip">Schedule</span>
+        <span class="chip">Exam</span>
+        <span class="chip">Moodle</span>
+        <span class="chip">Password</span>
+        <span class="chip">Help</span>
+        <span class="chip">Emergency</span>
+        <span class="chip">What is…</span>
+        <span class="chip">Where is…</span>
+        <span class="chip">How do I…</span>
+      </div>
+
+      <div class="legend">
+        <span><div class="legend-dot green"></div> Instant answer</span>
+        <span><div class="legend-dot blue"></div> AI-powered answer</span>
+      </div>
+    </div>
+
+    <!-- Shown while listening / thinking / answering -->
+    <div class="caption-label" id="caption-label" style="display:none;"></div>
+    <div class="caption-transcript" id="caption-transcript" style="display:none;"></div>
+    <div class="caption-answer"    id="caption-answer"    style="display:none;"></div>
+    <div class="source-badge"      id="source-badge"></div>
+  </div>
+
+</div>
+
+<script>
+  /* ── DOM refs ── */
+  var pill       = document.getElementById('status-pill');
+  var pillText   = document.getElementById('status-text');
+  var bubble     = document.getElementById('bubble');
+  var w1 = document.getElementById('w1');
+  var w2 = document.getElementById('w2');
+  var w3 = document.getElementById('w3');
+  var thinkOrbit = document.getElementById('think-orbit');
+  var idlePanel  = document.getElementById('idle-panel');
+  var capLabel   = document.getElementById('caption-label');
+  var capTrans   = document.getElementById('caption-transcript');
+  var capAnswer  = document.getElementById('caption-answer');
+  var srcBadge   = document.getElementById('source-badge');
+  var micIcon    = document.getElementById('mic-icon');
+
+  var autoTimer  = null;
+
+  /* ── helpers ── */
+  function setPill(state, label) {
+    pill.className  = 'status-pill ' + state;
+    pillText.textContent = label;
+  }
+
+  function setBubble(state) {
+    bubble.className = 'bubble ' + state;
+  }
+
+  function showWaves(on) {
+    var cls = on ? 'listening' : '';
+    [w1, w2, w3].forEach(function(w) { w.className = 'wave ' + cls; });
+  }
+
+  function showThinkOrbit(on) {
+    thinkOrbit.style.display = on ? 'block' : 'none';
+  }
+
+  function showHints(on) {
+    idlePanel.classList.toggle('hidden', !on);
+  }
+
+  function showCaption(label, transcript, answer) {
+    capLabel.textContent = label || '';
+    capLabel.style.display = label ? '' : 'none';
+    capTrans.textContent = transcript || '';
+    capTrans.style.display = transcript ? '' : 'none';
+    capAnswer.textContent = answer || '';
+    capAnswer.style.display = answer ? '' : 'none';
+  }
+
+  function clearAuto() {
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  }
+
+  /* ══════════════════════════════════
+     Python-callable functions
+  ══════════════════════════════════ */
+
+  /* Startup / between questions */
+  function showWelcome() {
+    clearAuto();
+    setPill('idle', 'Ready');
+    setBubble('idle');
+    showWaves(false);
+    showThinkOrbit(false);
+    micIcon.innerHTML = '&#127897;';
+    showHints(true);
+    showCaption('', '', '');
+    srcBadge.className = 'source-badge';
+  }
+
+  /* Speech detected — recording */
+  function showListening() {
+    clearAuto();
+    setPill('listening', 'Listening');
+    setBubble('listening');
+    showWaves(true);
+    showThinkOrbit(false);
+    micIcon.innerHTML = '&#127897;';
+    showHints(false);
+    showCaption('Speak your question…', '', '');
+    srcBadge.className = 'source-badge';
+  }
+
+  /* Waiting for Firebase / Gemini */
+  function showThinking() {
+    clearAuto();
+    setPill('thinking', 'Thinking');
+    setBubble('thinking');
+    showWaves(false);
+    showThinkOrbit(true);
+    micIcon.innerHTML = '&#8987;';
+    showHints(false);
+    showCaption('Stopped listening', '', 'Looking that up for you…');
+    srcBadge.className = 'source-badge';
+  }
+
+  /* Final answer — source: "faq" or "ai" */
+  function showAnswer(question, answer, source) {
+    clearAuto();
+    setPill('speaking', 'Responding');
+    setBubble('speaking');
+    showWaves(false);
+    showThinkOrbit(false);
+    micIcon.innerHTML = '&#128276;';
+    showHints(false);
+    showCaption('You said', '"' + question + '"', answer);
+
+    srcBadge.textContent = source === 'ai' ? '🤖 AI · Gemini' : '📋 Campus knowledge base';
+    srcBadge.className   = 'source-badge visible ' + (source === 'ai' ? 'ai' : 'faq');
+
+    /* After speaking, return to welcome */
+    autoTimer = setTimeout(function() {
+      setPill('idle', 'Ready');
+      setBubble('idle');
+      showWaves(false);
+      showThinkOrbit(false);
+      micIcon.innerHTML = '&#127897;';
+      showHints(true);
+      showCaption('', '', '');
+      srcBadge.className = 'source-badge';
+    }, 10000);
+  }
+</script>
+</body>
+</html>

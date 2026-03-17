@@ -78,27 +78,9 @@ Recognized speech appears as live text:
 
 “wifi password”
 
-Listening stops automatically
+shows text stopped listening
 
-Processing Logic
 
-Campus JSON knowledge searched first
-
-If information exists → direct answer
-
-If not → AI fallback (Gemini)
-
-This ensures:
-
-accuracy
-
-speed
-
-responsible AI usage
-
-Voice Output Flow
-
-Pepper speaks the response using robot TTS
 
 Bubble animates while speaking
 
@@ -269,11 +251,10 @@ Voice bubble in center (CSS breathing animation)
 
 Live transcription below
 
-Optional keyboard (hidden by default)
 
 Animations like thinking dots and speaking pulses are simple CSS keyframes.
 
-Language selection → just update the query language code for Pepper’s ALSpeechRecognition.
+
 
 6. Extra Simplifications
 
@@ -306,18 +287,39 @@ https://github.com/sunzhida/COMP4461_2017Fall_Lab4?tab=readme-ov-file : GitHub p
 
 Upload the file to robot 
 open cmd and type : scp C:\Users\acer\Documents\Programming\Laurimate\pepper_main.py nao@192.168.0.118:/home/nao/Laurimate/
+scp pepper_main.py nao@192.168.0.118:/home/nao/Laurimate/  
 put password : Dll#2025
 then it will upload (DO this everytime you edit the file)
+
+
+scp tablet/index.html nao@192.168.0.118:/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7/index.html
+
+
+
+
+# 1. Upload the Python brain
+scp pepper_main.py nao@192.168.0.118:/home/nao/Laurimate/pepper_main.py
+
+# 2. Upload the tablet UI
+scp tablet/index.html nao@192.168.0.118:/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7/index.html
+
+# 3. SSH in and run
+ssh nao@192.168.0.118
+python2.7 /home/nao/Laurimate/pepper_main.py
 
 
 to play on robot : first login : ssh nao@192.168.0.118
 and then navigate : python2.7 /home/nao/Laurimate/pepper_main.py 
 
 
+To update the tablet index : 
+= scp.exe d:\Laurimate\tablet\index.html nao@192.168.0.118:/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7/html/index.html
 
-3.16 ma gareko :
 
-1 - robot ma ai ra json file duitai ko response haleko xa tesma tyo hataune ra ai matra rakhne
-2- custom ai generated with the help of gemini api which uses the system prompt to answer and uploaded it to the firebase functions
-3 - tablet design garna parne
-4 - ai lai train garna parne
+Done till now, 3.16 ra 17 ma gareko : 
+
+1- custom ai generated with the help of gemini api which uses the system prompt to answer and uploaded it to the firebase functions
+
+
+To do :
+1 - ai lai train garna parne
