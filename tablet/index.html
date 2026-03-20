@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,10 +8,18 @@
   <style>
     @import url('https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700');
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html, body {
-      width: 100%; height: 100%;
+    html,
+    body {
+      width: 100%;
+      height: 100%;
       background-color: #0a0e1a;
       font-family: 'Poppins', 'Open Sans', Arial, sans-serif;
       color: #e2e8f0;
@@ -20,7 +29,11 @@
     /* Grid background fallback */
     body::before {
       content: '';
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background-image:
         linear-gradient(#1e2d45 1px, transparent 1px),
         linear-gradient(90deg, #1e2d45 1px, transparent 1px);
@@ -33,18 +46,22 @@
     body::after {
       content: '';
       position: absolute;
-      width: 600px; height: 600px;
+      width: 600px;
+      height: 600px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(56,189,248,0.08) 0%, transparent 70%);
-      top: -200px; left: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+      top: -200px;
+      left: 50%;
       margin-left: -300px;
       pointer-events: none;
     }
 
     /* ── Page layout ── */
     .page {
-      position: relative; z-index: 1;
-      width: 100%; height: 100%;
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
     }
 
     /* ═══════════════════════════════
@@ -52,49 +69,83 @@
     ═══════════════════════════════ */
     .header {
       position: absolute;
-      top: 36px; left: 0; right: 0;
-      display: -webkit-flex; display: flex;
-      -webkit-flex-direction: column; flex-direction: column;
-      -webkit-align-items: center; align-items: center;
+      top: 36px;
+      left: 0;
+      right: 0;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-justify-content: center;
+      justify-content: center;
       z-index: 10;
     }
 
-    .brand {
-      display: -webkit-flex; display: flex;
-      -webkit-align-items: center; align-items: center;
+    .brand-container {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
     }
 
-    .brand-icon {
-      width: 54px; height: 54px;
-      border-radius: 15px;
-      background: #818cf8; /* Fallback */
-      background: -webkit-linear-gradient(135deg, #38bdf8, #818cf8);
-      background: linear-gradient(135deg, #38bdf8, #818cf8);
-      display: -webkit-flex; display: flex;
-      -webkit-align-items: center; align-items: center;
-      -webkit-justify-content: center; justify-content: center;
-      font-size: 24px; color: white;
-      box-shadow: 0 0 28px rgba(56,189,248,0.4);
-      margin-right: 14px;
+    .brand-logo {
+      height: 76px;
+      margin-right: 18px;
+    }
+
+    .brand-text {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-justify-content: center;
+      justify-content: center;
+      -webkit-align-items: flex-start;
+      align-items: flex-start;
     }
 
     .brand-name {
-      font-size: 38px;
-      font-weight: 700;
+      font-size: 52px;
+      font-weight: 800;
       letter-spacing: -1px;
-      color: #38bdf8; /* Fallback */
-      background: -webkit-linear-gradient(90deg, #38bdf8, #818cf8);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 6px;
+      color: #00AEEF;
+      line-height: 1;
+      margin-bottom: 2px;
     }
 
     .byline {
-      font-size: 13px;
-      font-weight: 300;
-      color: #64748b;
-      letter-spacing: 1px;
+      font-size: 15px;
+      font-weight: 500;
+      color: #94a3b8;
+      letter-spacing: 0;
+      margin-top: 4px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .bar-line {
+      width: 18px;
+      height: 1px;
+      background: #94a3b8;
+      margin-left: -5px;
+      margin-right: 6px;
+      -webkit-flex-shrink: 0;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .secondbar-line {
+      width: 19px;
+      height: 1px;
+      background: #94a3b8;
+      margin-left: 6px;
+      margin-right: -5px;
+      -webkit-flex-shrink: 0;
+      flex-shrink: 0;
+      margin-top: 1px;
     }
 
     /* ═══════════════════════════════
@@ -102,18 +153,28 @@
     ═══════════════════════════════ */
     .bubble-area {
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      display: -webkit-flex; display: flex;
-      -webkit-flex-direction: column; flex-direction: column;
-      -webkit-align-items: center; align-items: center;
-      -webkit-justify-content: center; justify-content: center;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
       z-index: 5;
     }
 
     /* Wave rings (for listening state) */
     .wave-rings {
       position: absolute;
-      width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       border-radius: 50%;
       pointer-events: none;
     }
@@ -123,33 +184,44 @@
       border-radius: 50%;
       border: 2px solid #38bdf8;
       opacity: 0;
-      top: 50%; left: 50%;
-      margin-top: -100px; margin-left: -100px;
-      width: 200px; height: 200px;
+      top: 50%;
+      left: 50%;
+      margin-top: -100px;
+      margin-left: -100px;
+      width: 200px;
+      height: 200px;
     }
 
     /* Bubble wrapper (handles ripple overflow) */
     .bubble-wrap {
       position: relative;
-      width: 200px; height: 200px;
-      display: -webkit-flex; display: flex;
-      -webkit-align-items: center; align-items: center;
-      -webkit-justify-content: center; justify-content: center;
+      width: 200px;
+      height: 200px;
       margin-top: 20px;
     }
 
     /* Main bubble */
     .bubble {
-      position: relative; z-index: 2;
-      width: 180px; height: 180px;
+      position: absolute;
+      z-index: 2;
+      width: 180px;
+      height: 180px;
+      top: 50%;
+      left: 50%;
+      margin-top: -90px;
+      margin-left: -90px;
       border-radius: 50%;
-      background-color: rgba(56,189,248,0.15); /* Solid fallback */
-      background: -webkit-radial-gradient(38% 38%, circle, rgba(56,189,248,0.22), rgba(129,140,248,0.12));
-      border: 2px solid rgba(56,189,248,0.4);
-      display: -webkit-flex; display: flex;
-      -webkit-align-items: center; align-items: center;
-      -webkit-justify-content: center; justify-content: center;
-      box-shadow: 0 0 0 0 rgba(56,189,248,0.3), inset 0 0 40px rgba(56,189,248,0.08);
+      background-color: rgba(56, 189, 248, 0.15);
+      /* Solid fallback */
+      background: -webkit-radial-gradient(38% 38%, circle, rgba(56, 189, 248, 0.22), rgba(129, 140, 248, 0.12));
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.3), inset 0 0 40px rgba(56, 189, 248, 0.08);
       -webkit-transition: border-color 0.5s, box-shadow 0.5s;
       transition: border-color 0.5s, box-shadow 0.5s;
     }
@@ -160,53 +232,120 @@
     }
 
     /* ── Idle state: heartbeat double-thump ── */
-    .bubble.idle { -webkit-animation: idle-heartbeat 2s ease-in-out infinite; animation: idle-heartbeat 2s ease-in-out infinite; }
-    @-webkit-keyframes idle-heartbeat {
-      0%, 40%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.25), inset 0 0 40px rgba(56,189,248,0.06); -webkit-transform: scale(1); transform: scale(1); }
-      10% { box-shadow: 0 0 0 12px rgba(56,189,248,0.0), inset 0 0 50px rgba(56,189,248,0.1); -webkit-transform: scale(1.05); transform: scale(1.05); }
-      25% { box-shadow: 0 0 0 20px rgba(56,189,248,0.0), inset 0 0 60px rgba(56,189,248,0.12); -webkit-transform: scale(1.08); transform: scale(1.08); }
+    .bubble.idle {
+      -webkit-animation: idle-heartbeat 2s ease-in-out infinite;
+      animation: idle-heartbeat 2s ease-in-out infinite;
     }
+
+    @-webkit-keyframes idle-heartbeat {
+
+      0%,
+      40%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25), inset 0 0 40px rgba(56, 189, 248, 0.06);
+        -webkit-transform: scale(1);
+        transform: scale(1);
+      }
+
+      10% {
+        box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.0), inset 0 0 50px rgba(56, 189, 248, 0.1);
+        -webkit-transform: scale(1.05);
+        transform: scale(1.05);
+      }
+
+      25% {
+        box-shadow: 0 0 0 20px rgba(56, 189, 248, 0.0), inset 0 0 60px rgba(56, 189, 248, 0.12);
+        -webkit-transform: scale(1.08);
+        transform: scale(1.08);
+      }
+    }
+
     @keyframes idle-heartbeat {
-      0%, 40%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.25), inset 0 0 40px rgba(56,189,248,0.06); transform: scale(1); }
-      10% { box-shadow: 0 0 0 12px rgba(56,189,248,0.0), inset 0 0 50px rgba(56,189,248,0.1); transform: scale(1.05); }
-      25% { box-shadow: 0 0 0 20px rgba(56,189,248,0.0), inset 0 0 60px rgba(56,189,248,0.12); transform: scale(1.08); }
+
+      0%,
+      40%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25), inset 0 0 40px rgba(56, 189, 248, 0.06);
+        transform: scale(1);
+      }
+
+      10% {
+        box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.0), inset 0 0 50px rgba(56, 189, 248, 0.1);
+        transform: scale(1.05);
+      }
+
+      25% {
+        box-shadow: 0 0 0 20px rgba(56, 189, 248, 0.0), inset 0 0 60px rgba(56, 189, 248, 0.12);
+        transform: scale(1.08);
+      }
     }
 
     /* ── Listening state: expanding sound waves ── */
     .bubble.listening {
-      border-color: rgba(56,189,248,0.8);
-      box-shadow: 0 0 30px rgba(56,189,248,0.35), inset 0 0 40px rgba(56,189,248,0.1);
+      border-color: rgba(56, 189, 248, 0.8);
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.35), inset 0 0 40px rgba(56, 189, 248, 0.1);
       -webkit-animation: none;
       animation: none;
     }
 
-    .wave.listening { -webkit-animation: wave-expand 2s ease-out infinite; animation: wave-expand 2s ease-out infinite; }
-    .wave.listening:nth-child(2) { -webkit-animation-delay: 0.55s; animation-delay: 0.55s; }
-    .wave.listening:nth-child(3) { -webkit-animation-delay: 1.1s; animation-delay: 1.1s; }
+    .wave.listening {
+      -webkit-animation: wave-expand 2s ease-out infinite;
+      animation: wave-expand 2s ease-out infinite;
+    }
+
+    .wave.listening:nth-child(2) {
+      -webkit-animation-delay: 0.55s;
+      animation-delay: 0.55s;
+    }
+
+    .wave.listening:nth-child(3) {
+      -webkit-animation-delay: 1.1s;
+      animation-delay: 1.1s;
+    }
 
     @-webkit-keyframes wave-expand {
-      0%   { opacity: 0.7; -webkit-transform: scale(1); transform: scale(1);  }
-      100% { opacity: 0;   -webkit-transform: scale(2.2); transform: scale(2.2); }
+      0% {
+        opacity: 0.7;
+        -webkit-transform: scale(1);
+        transform: scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        -webkit-transform: scale(2.2);
+        transform: scale(2.2);
+      }
     }
+
     @keyframes wave-expand {
-      0%   { opacity: 0.7; transform: scale(1);  }
-      100% { opacity: 0;   transform: scale(2.2); }
+      0% {
+        opacity: 0.7;
+        transform: scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(2.2);
+      }
     }
 
     /* ── Thinking state: spinning ring of dots ── */
     .bubble.thinking {
-      border-color: rgba(251,191,36,0.5);
-      box-shadow: 0 0 30px rgba(251,191,36,0.2), inset 0 0 40px rgba(251,191,36,0.06);
+      border-color: rgba(251, 191, 36, 0.5);
+      box-shadow: 0 0 30px rgba(251, 191, 36, 0.2), inset 0 0 40px rgba(251, 191, 36, 0.06);
       -webkit-animation: none;
       animation: none;
     }
 
     .think-orbit {
       position: absolute;
-      width: 210px; height: 210px;
+      width: 210px;
+      height: 210px;
       border-radius: 50%;
-      top: 50%; left: 50%;
-      margin-top: -105px; margin-left: -105px;
+      top: 50%;
+      left: 50%;
+      margin-top: -105px;
+      margin-left: -105px;
       -webkit-animation: orbit-spin 1.8s linear infinite;
       animation: orbit-spin 1.8s linear infinite;
       pointer-events: none;
@@ -215,42 +354,79 @@
     .think-orbit::before {
       content: '';
       position: absolute;
-      width: 12px; height: 12px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       background: #fbbf24;
-      top: -6px; left: 50%;
+      top: -6px;
+      left: 50%;
       margin-left: -6px;
-      box-shadow: 0 0 10px rgba(251,191,36,0.8);
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
     }
 
-    @-webkit-keyframes orbit-spin { to { -webkit-transform: rotate(360deg); transform: rotate(360deg); } }
-    @keyframes orbit-spin { to { transform: rotate(360deg); } }
+    @-webkit-keyframes orbit-spin {
+      to {
+        -webkit-transform: rotate(360deg);
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes orbit-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
 
     /* ── Speaking state: fast pulse ── */
     .bubble.speaking {
-      border-color: rgba(129,140,248,0.8);
-      box-shadow: 0 0 35px rgba(129,140,248,0.4), inset 0 0 50px rgba(129,140,248,0.12);
+      border-color: rgba(129, 140, 248, 0.8);
+      box-shadow: 0 0 35px rgba(129, 140, 248, 0.4), inset 0 0 50px rgba(129, 140, 248, 0.12);
       -webkit-animation: speak-pulse 0.8s ease-in-out infinite;
       animation: speak-pulse 0.8s ease-in-out infinite;
     }
 
     @-webkit-keyframes speak-pulse {
-      0%, 100% { -webkit-transform: scale(1); transform: scale(1); box-shadow: 0 0 35px rgba(129,140,248,0.35), inset 0 0 50px rgba(129,140,248,0.10); }
-      50%       { -webkit-transform: scale(1.06); transform: scale(1.06); box-shadow: 0 0 55px rgba(129,140,248,0.60), inset 0 0 70px rgba(129,140,248,0.18); }
+
+      0%,
+      100% {
+        -webkit-transform: scale(1);
+        transform: scale(1);
+        box-shadow: 0 0 35px rgba(129, 140, 248, 0.35), inset 0 0 50px rgba(129, 140, 248, 0.10);
+      }
+
+      50% {
+        -webkit-transform: scale(1.06);
+        transform: scale(1.06);
+        box-shadow: 0 0 55px rgba(129, 140, 248, 0.60), inset 0 0 70px rgba(129, 140, 248, 0.18);
+      }
     }
+
     @keyframes speak-pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 35px rgba(129,140,248,0.35), inset 0 0 50px rgba(129,140,248,0.10); }
-      50%       { transform: scale(1.06); box-shadow: 0 0 55px rgba(129,140,248,0.60), inset 0 0 70px rgba(129,140,248,0.18); }
+
+      0%,
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 35px rgba(129, 140, 248, 0.35), inset 0 0 50px rgba(129, 140, 248, 0.10);
+      }
+
+      50% {
+        transform: scale(1.06);
+        box-shadow: 0 0 55px rgba(129, 140, 248, 0.60), inset 0 0 70px rgba(129, 140, 248, 0.18);
+      }
     }
 
     /* ═══════════════════════════════
        STATUS PILL
     ═══════════════════════════════ */
     .status-pill {
-      display: -webkit-flex; display: flex;
-      -webkit-align-items: center; align-items: center;
-      font-size: 13px; font-weight: 600;
-      letter-spacing: 1px; text-transform: uppercase;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
       color: #64748b;
       padding: 7px 18px;
       border: 1px solid #1e2d45;
@@ -260,26 +436,74 @@
       transition: color 0.4s, border-color 0.4s, background 0.4s;
     }
 
-    .status-pill.idle      { color: #64748b; border-color: #1e2d45; }
-    .status-pill.listening { color: #38bdf8; border-color: rgba(56,189,248,0.5); background: rgba(56,189,248,0.06); }
-    .status-pill.thinking  { color: #fbbf24; border-color: rgba(251,191,36,0.5); background: rgba(251,191,36,0.06); }
-    .status-pill.speaking  { color: #818cf8; border-color: rgba(129,140,248,0.5); background: rgba(129,140,248,0.06); }
+    .status-pill.idle {
+      color: #64748b;
+      border-color: #1e2d45;
+    }
+
+    .status-pill.listening {
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.5);
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    .status-pill.thinking {
+      color: #fbbf24;
+      border-color: rgba(251, 191, 36, 0.5);
+      background: rgba(251, 191, 36, 0.06);
+    }
+
+    .status-pill.speaking {
+      color: #818cf8;
+      border-color: rgba(129, 140, 248, 0.5);
+      background: rgba(129, 140, 248, 0.06);
+    }
 
     .pill-dot {
-      width: 7px; height: 7px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: currentColor;
       margin-right: 8px;
     }
-    .status-pill.listening .pill-dot { -webkit-animation: blink-dot 1s ease-in-out infinite; animation: blink-dot 1s ease-in-out infinite; }
-    .status-pill.thinking  .pill-dot { -webkit-animation: blink-dot 0.5s ease-in-out infinite; animation: blink-dot 0.5s ease-in-out infinite; }
-    .status-pill.speaking  .pill-dot { -webkit-animation: blink-dot 0.7s ease-in-out infinite; animation: blink-dot 0.7s ease-in-out infinite; }
+
+    .status-pill.listening .pill-dot {
+      -webkit-animation: blink-dot 1s ease-in-out infinite;
+      animation: blink-dot 1s ease-in-out infinite;
+    }
+
+    .status-pill.thinking .pill-dot {
+      -webkit-animation: blink-dot 0.5s ease-in-out infinite;
+      animation: blink-dot 0.5s ease-in-out infinite;
+    }
+
+    .status-pill.speaking .pill-dot {
+      -webkit-animation: blink-dot 0.7s ease-in-out infinite;
+      animation: blink-dot 0.7s ease-in-out infinite;
+    }
 
     @-webkit-keyframes blink-dot {
-      0%, 100% { opacity: 1; } 50% { opacity: 0.2; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.2;
+      }
     }
+
     @keyframes blink-dot {
-      0%, 100% { opacity: 1; } 50% { opacity: 0.2; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.2;
+      }
     }
 
     /* ═══════════════════════════════
@@ -287,12 +511,17 @@
     ═══════════════════════════════ */
     .caption-area {
       position: absolute;
-      bottom: 32px; left: 0; right: 0;
+      bottom: 32px;
+      left: 0;
+      right: 0;
       width: 100%;
       min-height: 100px;
-      display: -webkit-flex; display: flex;
-      -webkit-flex-direction: column; flex-direction: column;
-      -webkit-align-items: center; align-items: center;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
       text-align: center;
       z-index: 10;
     }
@@ -324,33 +553,72 @@
 
     .source-badge {
       display: inline-block;
-      font-size: 11px; font-weight: 600;
-      letter-spacing: 1px; text-transform: uppercase;
-      padding: 4px 12px; border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 100px;
       margin-top: 12px;
       opacity: 0;
       -webkit-transition: opacity 0.4s;
       transition: opacity 0.4s;
     }
-    .source-badge.visible { opacity: 1; }
-    .source-badge.faq { background: rgba(56,189,248,0.12);  color: #38bdf8; }
-    .source-badge.ai  { background: rgba(129,140,248,0.12); color: #818cf8; }
+
+    .source-badge.visible {
+      opacity: 1;
+    }
+
+    .source-badge.faq {
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+    }
+
+    .source-badge.ai {
+      background: rgba(129, 140, 248, 0.12);
+      color: #818cf8;
+    }
 
     /* ── Idle instruction panel ── */
     .idle-panel {
-      display: -webkit-flex; display: flex;
-      -webkit-flex-direction: column; flex-direction: column;
-      -webkit-align-items: center; align-items: center;
-      width: 100%; max-width: 700px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      width: 100%;
+      max-width: 700px;
       -webkit-transition: opacity 0.4s;
       transition: opacity 0.4s;
     }
-    .idle-panel.hidden { opacity: 0; pointer-events: none; }
+
+    .idle-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .intro-text {
+      font-size: 16px;
+      font-weight: 400;
+      color: #cbd5e1;
+      text-align: center;
+      line-height: 1.6;
+      margin-bottom: 24px;
+      max-width: 660px;
+    }
+
+    .intro-text strong {
+      color: #00AEEF;
+      font-weight: 700;
+    }
 
     .how-row {
-      display: -webkit-flex; display: flex;
+      display: -webkit-flex;
+      display: flex;
       width: 100%;
-      -webkit-justify-content: center; justify-content: center;
+      -webkit-justify-content: center;
+      justify-content: center;
       margin-bottom: 20px;
     }
 
@@ -360,15 +628,35 @@
       border: 1px solid #1e2d45;
       border-radius: 14px;
       padding: 12px 14px;
-      display: -webkit-flex; display: flex;
-      -webkit-flex-direction: column; flex-direction: column;
-      -webkit-align-items: center; align-items: center;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
       text-align: center;
       margin: 0 5px;
     }
-    .how-step .step-icon { font-size: 24px; margin-bottom: 6px; }
-    .how-step .step-title { font-size: 12px; font-weight: 700; color: #38bdf8; letter-spacing: 1px; margin-bottom: 4px; }
-    .how-step .step-desc  { font-size: 11px; font-weight: 300; color: #64748b; line-height: 1.3; }
+
+    .how-step .step-icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .how-step .step-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .how-step .step-desc {
+      font-size: 11px;
+      font-weight: 300;
+      color: #64748b;
+      line-height: 1.3;
+    }
 
     .trigger-heading {
       font-size: 11px;
@@ -387,271 +675,293 @@
 
     .chip {
       display: inline-block;
-      font-size: 12px; font-weight: 500;
-      padding: 6px 14px; border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 100px;
       border: 1px solid #1e2d45;
       color: #64748b;
       background: #111827;
       margin: 4px;
     }
+
     .chip.instant {
-      border-color: rgba(52,211,153,0.4);
+      border-color: rgba(52, 211, 153, 0.4);
       color: #6ee7b7;
-      background: rgba(52,211,153,0.07);
+      background: rgba(52, 211, 153, 0.07);
     }
+
     .legend {
-      font-size: 11px; color: #64748b;
-      display: -webkit-flex; display: flex;
-      -webkit-justify-content: center; justify-content: center;
+      font-size: 11px;
+      color: #64748b;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-justify-content: center;
+      justify-content: center;
     }
-    .legend span { 
-      display: -webkit-flex; display: flex; 
-      -webkit-align-items: center; align-items: center; 
+
+    .legend span {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
       margin: 0 10px;
     }
+
     .legend-dot {
-      width: 7px; height: 7px; border-radius: 50%;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
       margin-right: 6px;
     }
-    .legend-dot.green { background: #6ee7b7; }
-    .legend-dot.blue  { background: #64748b; }
+
+    .legend-dot.green {
+      background: #6ee7b7;
+    }
+
+    .legend-dot.blue {
+      background: #64748b;
+    }
   </style>
 </head>
+
 <body>
-<div class="page">
+  <div class="page">
 
-  <!-- ── HEADER ── -->
-  <div class="header">
-    <div class="brand">
-      <div class="brand-icon">🎓</div>
-      <div class="brand-name">Laurimate</div>
-    </div>
-    <div class="byline">Built by Rakesh &amp; Prasiddha · Laurea University of Applied Sciences</div>
-  </div>
-
-  <!-- ── VOICE BUBBLE ── -->
-  <div class="bubble-area">
-
-    <!-- Status pill -->
-    <div class="status-pill idle" id="status-pill">
-      <div class="pill-dot"></div>
-      <span id="status-text">Ready</span>
-    </div>
-
-    <!-- Bubble + wave rings -->
-    <div class="bubble-wrap">
-      <!-- Expanding wave rings (listening) -->
-      <div class="wave-rings" id="wave-rings">
-        <div class="wave" id="w1"></div>
-        <div class="wave" id="w2"></div>
-        <div class="wave" id="w3"></div>
-      </div>
-
-      <!-- Thinking orbit ring -->
-      <div class="think-orbit" id="think-orbit" style="display:none;"></div>
-
-      <!-- Main bubble -->
-      <div class="bubble idle" id="bubble">
-        <div class="mic-icon" id="mic-icon">&#127897;</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── CAPTION ── -->
-  <div class="caption-area">
-
-    <!-- IDLE: instruction panel -->
-    <div class="idle-panel" id="idle-panel">
-
-      <!-- How it works: 3 steps -->
-      <div class="how-row">
-        <div class="how-step">
-          <div class="step-icon">💬</div>
-          <div class="step-title">1 · Say a trigger word</div>
-          <div class="step-desc">Speak any word below clearly &mdash; I'll wake up instantly</div>
-        </div>
-        <div class="how-step">
-          <div class="step-icon">🎙️</div>
-          <div class="step-title">2 · Ask your question</div>
-          <div class="step-desc">Say your full question &mdash; I'll listen until you go quiet</div>
-        </div>
-        <div class="how-step">
-          <div class="step-icon">🔔</div>
-          <div class="step-title">3 · I'll answer you</div>
-          <div class="step-desc">I speak the answer aloud and show it on screen</div>
+    <!-- ── HEADER ── -->
+    <div class="header">
+      <div class="brand-container">
+        <img src="laurea.png" alt="Laurea" class="brand-logo" />
+        <div class="brand-text">
+          <div class="brand-name">Laurimate</div>
+          <div class="byline">
+            <span>&bull;</span>
+            <div class="bar-line"></div>
+            <span>Built by Prasiddha &amp; Rakesh</span>
+            <div class="secondbar-line"></div><span>&bull;</span>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- Trigger words -->
-      <div class="trigger-heading">Say one of these words to start</div>
+    <!-- ── VOICE BUBBLE ── -->
+    <div class="bubble-area">
 
-      <div class="chip-grid">
-        <!-- Instant (green) -->
-        <span class="chip instant">Hello</span>
-        <span class="chip instant">Hi</span>
-        <span class="chip instant">Hey</span>
-        <span class="chip instant">Hey Laurimate</span>
-        <span class="chip instant">Thank you</span>
-        <span class="chip instant">Bye</span>
-        <!-- AI-answered -->
-        <span class="chip">WiFi</span>
-        <span class="chip">Library</span>
-        <span class="chip">Canteen</span>
-        <span class="chip">Printing</span>
-        <span class="chip">Toilet</span>
-        <span class="chip">Classroom</span>
-        <span class="chip">Bus</span>
-        <span class="chip">Parking</span>
-        <span class="chip">Student card</span>
-        <span class="chip">Schedule</span>
-        <span class="chip">Exam</span>
-        <span class="chip">Moodle</span>
-        <span class="chip">Password</span>
-        <span class="chip">Help</span>
-        <span class="chip">Emergency</span>
-        <span class="chip">What is…</span>
-        <span class="chip">Where is…</span>
-        <span class="chip">How do I…</span>
+      <!-- Status pill -->
+      <div class="status-pill idle" id="status-pill" style="display: none;">
+        <div class="pill-dot"></div>
+        <span id="status-text">Ready</span>
       </div>
 
-      <div class="legend">
-        <span><div class="legend-dot green"></div> Instant answer</span>
-        <span><div class="legend-dot blue"></div> AI-powered answer</span>
+      <!-- Bubble + wave rings -->
+      <div class="bubble-wrap" id="bubble-wrap" style="display: none;">
+        <!-- Expanding wave rings (listening) -->
+        <div class="wave-rings" id="wave-rings">
+          <div class="wave" id="w1"></div>
+          <div class="wave" id="w2"></div>
+          <div class="wave" id="w3"></div>
+        </div>
+
+        <!-- Thinking orbit ring -->
+        <div class="think-orbit" id="think-orbit" style="display:none;"></div>
+
+        <!-- Main bubble -->
+        <div class="bubble idle" id="bubble">
+          <div class="mic-icon" id="mic-icon"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Shown while listening / thinking / answering -->
-    <div class="caption-label" id="caption-label" style="display:none;"></div>
-    <div class="caption-transcript" id="caption-transcript" style="display:none;"></div>
-    <div class="caption-answer"    id="caption-answer"    style="display:none;"></div>
-    <div class="source-badge"      id="source-badge"></div>
+    <!-- ── CAPTION ── -->
+    <div class="caption-area">
+
+      <!-- IDLE: instruction panel -->
+      <div class="idle-panel" id="idle-panel">
+
+        <!-- Introduction -->
+        <div class="intro-text">
+          Hello, I am <strong>Laurimate</strong>, a smart, AI-powered <strong>Pepper robot</strong> specially designed to guide
+          you around <strong>Laurea University of Applied Sciences</strong>. Whether you are a student, staff member, or
+          visitor, I am here to provide you with instant, hands-free assistance. Ask me anything about campus
+          facilities, daily schedules, IT services, or events, and I will find the answers for you :)
+        </div>
+
+        <!-- How it works: 3 steps -->
+        <div class="how-row">
+          <div class="how-step">
+            <div class="step-title">1 · Say a trigger word</div>
+            <div class="step-desc">Speak any word below clearly &mdash; I'll wake up instantly</div>
+          </div>
+          <div class="how-step">
+            <div class="step-title">2 · Ask your question</div>
+            <div class="step-desc">Say your full question &mdash; I'll listen until you go quiet</div>
+          </div>
+          <div class="how-step">
+            <div class="step-title">3 · I'll answer you</div>
+            <div class="step-desc">I speak the answer aloud and show it on screen</div>
+          </div>
+        </div>
+
+        <!-- Trigger words -->
+        <div class="trigger-heading">Say one of these words to wake me up:</div>
+
+        <div class="chip-grid">
+          <span class="chip instant">Hello</span>
+          <span class="chip instant">Hi</span>
+          <span class="chip instant">Hey</span>
+          <span class="chip instant">Hey Laurimate</span>
+        </div>
+
+        <div class="legend">
+          <span>
+            <div class="legend-dot green"></div> Instant answer
+          </span>
+          <span>
+            <div class="legend-dot blue"></div> AI-powered answer
+          </span>
+        </div>
+
+      </div>
+
+      <!-- Shown while listening / thinking / answering -->
+      <div class="caption-label" id="caption-label" style="display:none;"></div>
+      <div class="caption-transcript" id="caption-transcript" style="display:none;"></div>
+      <div class="caption-answer" id="caption-answer" style="display:none;"></div>
+
+    </div>
+
   </div>
 
-</div>
+  <script>
+    /* ── DOM refs ── */
+    var pill = document.getElementById('status-pill');
+    var pillText = document.getElementById('status-text');
+    var bubble = document.getElementById('bubble');
+    var w1 = document.getElementById('w1');
+    var w2 = document.getElementById('w2');
+    var w3 = document.getElementById('w3');
+    var thinkOrbit = document.getElementById('think-orbit');
+    var idlePanel = document.getElementById('idle-panel');
+    var capLabel = document.getElementById('caption-label');
+    var capTrans = document.getElementById('caption-transcript');
+    var capAnswer = document.getElementById('caption-answer');
 
-<script>
-  /* ── DOM refs ── */
-  var pill       = document.getElementById('status-pill');
-  var pillText   = document.getElementById('status-text');
-  var bubble     = document.getElementById('bubble');
-  var w1 = document.getElementById('w1');
-  var w2 = document.getElementById('w2');
-  var w3 = document.getElementById('w3');
-  var thinkOrbit = document.getElementById('think-orbit');
-  var idlePanel  = document.getElementById('idle-panel');
-  var capLabel   = document.getElementById('caption-label');
-  var capTrans   = document.getElementById('caption-transcript');
-  var capAnswer  = document.getElementById('caption-answer');
-  var srcBadge   = document.getElementById('source-badge');
-  var micIcon    = document.getElementById('mic-icon');
+    var micIcon = document.getElementById('mic-icon');
 
-  var autoTimer  = null;
+    var autoTimer = null;
+    var bubbleWrap = document.getElementById('bubble-wrap');
 
-  /* ── helpers ── */
-  function setPill(state, label) {
-    pill.className  = 'status-pill ' + state;
-    pillText.textContent = label;
-  }
+    /* ── helpers ── */
+    function setPill(state, label) {
+      pill.className = 'status-pill ' + state;
+      pillText.textContent = label;
+    }
 
-  function setBubble(state) {
-    bubble.className = 'bubble ' + state;
-  }
+    function setBubble(state) {
+      bubble.className = 'bubble ' + state;
+    }
 
-  function showWaves(on) {
-    var cls = on ? 'listening' : '';
-    [w1, w2, w3].forEach(function(w) { w.className = 'wave ' + cls; });
-  }
+    function showWaves(on) {
+      var cls = on ? 'listening' : '';
+      [w1, w2, w3].forEach(function (w) { w.className = 'wave ' + cls; });
+    }
 
-  function showThinkOrbit(on) {
-    thinkOrbit.style.display = on ? 'block' : 'none';
-  }
+    function showThinkOrbit(on) {
+      thinkOrbit.style.display = on ? 'block' : 'none';
+    }
 
-  function showHints(on) {
-    idlePanel.classList.toggle('hidden', !on);
-  }
+    function showHints(on) {
+      idlePanel.classList.toggle('hidden', !on);
+    }
 
-  function showCaption(label, transcript, answer) {
-    capLabel.textContent = label || '';
-    capLabel.style.display = label ? '' : 'none';
-    capTrans.textContent = transcript || '';
-    capTrans.style.display = transcript ? '' : 'none';
-    capAnswer.textContent = answer || '';
-    capAnswer.style.display = answer ? '' : 'none';
-  }
+    function showCaption(label, transcript, answer) {
+      capLabel.textContent = label || '';
+      capLabel.style.display = label ? '' : 'none';
+      capTrans.textContent = transcript || '';
+      capTrans.style.display = transcript ? '' : 'none';
+      capAnswer.textContent = answer || '';
+      capAnswer.style.display = answer ? '' : 'none';
+    }
 
-  function clearAuto() {
-    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-  }
+    function clearAuto() {
+      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    }
 
-  /* ══════════════════════════════════
-     Python-callable functions
-  ══════════════════════════════════ */
+    /* ══════════════════════════════════
+       Python-callable functions
+    ══════════════════════════════════ */
 
-  /* Startup / between questions */
-  function showWelcome() {
-    clearAuto();
-    setPill('idle', 'Ready');
-    setBubble('idle');
-    showWaves(false);
-    showThinkOrbit(false);
-    micIcon.innerHTML = '&#127897;';
-    showHints(true);
-    showCaption('', '', '');
-    srcBadge.className = 'source-badge';
-  }
-
-  /* Speech detected — recording */
-  function showListening() {
-    clearAuto();
-    setPill('listening', 'Listening');
-    setBubble('listening');
-    showWaves(true);
-    showThinkOrbit(false);
-    micIcon.innerHTML = '&#127897;';
-    showHints(false);
-    showCaption('Speak your question…', '', '');
-    srcBadge.className = 'source-badge';
-  }
-
-  /* Waiting for Firebase / Gemini */
-  function showThinking() {
-    clearAuto();
-    setPill('thinking', 'Thinking');
-    setBubble('thinking');
-    showWaves(false);
-    showThinkOrbit(true);
-    micIcon.innerHTML = '&#8987;';
-    showHints(false);
-    showCaption('Stopped listening', '', 'Looking that up for you…');
-    srcBadge.className = 'source-badge';
-  }
-
-  /* Final answer — source: "faq" or "ai" */
-  function showAnswer(question, answer, source) {
-    clearAuto();
-    setPill('speaking', 'Responding');
-    setBubble('speaking');
-    showWaves(false);
-    showThinkOrbit(false);
-    micIcon.innerHTML = '&#128276;';
-    showHints(false);
-    showCaption('You said', '"' + question + '"', answer);
-
-    srcBadge.textContent = source === 'ai' ? '🤖 AI · Gemini' : '📋 Campus knowledge base';
-    srcBadge.className   = 'source-badge visible ' + (source === 'ai' ? 'ai' : 'faq');
-
-    /* After speaking, return to welcome */
-    autoTimer = setTimeout(function() {
+    /* Startup / between questions */
+    function showWelcome() {
+      clearAuto();
       setPill('idle', 'Ready');
       setBubble('idle');
       showWaves(false);
       showThinkOrbit(false);
-      micIcon.innerHTML = '&#127897;';
+      bubbleWrap.style.display = 'none';
+      pill.style.display = 'none';
+      micIcon.innerHTML = '';
       showHints(true);
       showCaption('', '', '');
-      srcBadge.className = 'source-badge';
-    }, 10000);
-  }
-</script>
+    }
+
+    /* Speech detected — recording */
+    function showListening() {
+      clearAuto();
+      setPill('listening', 'Listening');
+      setBubble('listening');
+      showWaves(true);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('Speak your question…', '', '');
+    }
+
+    /* Waiting for Firebase / Gemini */
+    function showThinking() {
+      clearAuto();
+      setPill('thinking', 'Thinking');
+      setBubble('thinking');
+      showWaves(false);
+      showThinkOrbit(true);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('Stopped listening', '', 'Looking that up for you…');
+    }
+
+    /* Final answer — source: "faq" or "ai" */
+    function showAnswer(question, answer, source) {
+      clearAuto();
+      setPill('speaking', 'Responding');
+      setBubble('speaking');
+      showWaves(false);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('You said', '"' + question + '"', answer);
+
+
+
+      /* After speaking, return to welcome */
+      autoTimer = setTimeout(function () {
+        setPill('idle', 'Ready');
+        setBubble('idle');
+        showWaves(false);
+        showThinkOrbit(false);
+        bubbleWrap.style.display = 'none';
+        pill.style.display = 'none';
+        micIcon.innerHTML = '';
+        showHints(true);
+        showCaption('', '', '');
+      }, 10000);
+    }
+  </script>
 </body>
+
 </html>

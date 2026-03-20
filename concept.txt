@@ -323,3 +323,5 @@ Done till now, 3.16 ra 17 ma gareko :
 
 To do :
 1 - ai lai train garna parne
+2 - and also when its throwing an error like sorrry i couldn'y catch that.. at that time show an error display instead of that thinking screen, make like didnt understand sorry ic  coudln catch that
+3 - gestures
