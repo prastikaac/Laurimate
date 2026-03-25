@@ -377,6 +377,87 @@
       }
     }
 
+    /* ── No-speech / error state: red shake ── */
+    .bubble.nospeech {
+      border-color: rgba(239, 68, 68, 0.6);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.25), inset 0 0 40px rgba(239, 68, 68, 0.08);
+      -webkit-animation: error-shake 0.5s ease-in-out 1;
+      animation: error-shake 0.5s ease-in-out 1;
+    }
+
+    @-webkit-keyframes error-shake {
+      0% {
+        -webkit-transform: translateX(0);
+        transform: translateX(0);
+      }
+
+      18% {
+        -webkit-transform: translateX(-10px);
+        transform: translateX(-10px);
+      }
+
+      36% {
+        -webkit-transform: translateX(10px);
+        transform: translateX(10px);
+      }
+
+      54% {
+        -webkit-transform: translateX(-8px);
+        transform: translateX(-8px);
+      }
+
+      72% {
+        -webkit-transform: translateX(8px);
+        transform: translateX(8px);
+      }
+
+      88% {
+        -webkit-transform: translateX(-4px);
+        transform: translateX(-4px);
+      }
+
+      100% {
+        -webkit-transform: translateX(0);
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes error-shake {
+      0% {
+        transform: translateX(0);
+      }
+
+      18% {
+        transform: translateX(-10px);
+      }
+
+      36% {
+        transform: translateX(10px);
+      }
+
+      54% {
+        transform: translateX(-8px);
+      }
+
+      72% {
+        transform: translateX(8px);
+      }
+
+      88% {
+        transform: translateX(-4px);
+      }
+
+      100% {
+        transform: translateX(0);
+      }
+    }
+
+    .status-pill.nospeech {
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.06);
+    }
+
     /* ── Speaking state: fast pulse ── */
     .bubble.speaking {
       border-color: rgba(129, 140, 248, 0.8);
@@ -780,26 +861,11 @@
 
         <!-- Introduction -->
         <div class="intro-text">
-          Hello, I am <strong>Laurimate</strong>, a smart, AI-powered <strong>Pepper robot</strong> specially designed to guide
+          Hello, I am <strong>Laurimate</strong>, a smart, AI-powered <strong>Pepper robot</strong> specially designed
+          to guide
           you around <strong>Laurea University of Applied Sciences</strong>. Whether you are a student, staff member, or
           visitor, I am here to provide you with instant, hands-free assistance. Ask me anything about campus
           facilities, daily schedules, IT services, or events, and I will find the answers for you :)
-        </div>
-
-        <!-- How it works: 3 steps -->
-        <div class="how-row">
-          <div class="how-step">
-            <div class="step-title">1 · Say a trigger word</div>
-            <div class="step-desc">Speak any word below clearly &mdash; I'll wake up instantly</div>
-          </div>
-          <div class="how-step">
-            <div class="step-title">2 · Ask your question</div>
-            <div class="step-desc">Say your full question &mdash; I'll listen until you go quiet</div>
-          </div>
-          <div class="how-step">
-            <div class="step-title">3 · I'll answer you</div>
-            <div class="step-desc">I speak the answer aloud and show it on screen</div>
-          </div>
         </div>
 
         <!-- Trigger words -->
@@ -809,7 +875,23 @@
           <span class="chip instant">Hello</span>
           <span class="chip instant">Hi</span>
           <span class="chip instant">Hey</span>
-          <span class="chip instant">Hey Laurimate</span>
+          <span class="chip instant">Hello Laurimate</span>
+        </div>
+
+        <!-- How it works: 3 steps -->
+        <div class="how-row">
+          <div class="how-step">
+            <div class="step-title">1 · Say a trigger word</div>
+            <div class="step-desc">Speak any word above clearly &mdash; I'll wake up instantly</div>
+          </div>
+          <div class="how-step">
+            <div class="step-title">2 · Ask your question</div>
+            <div class="step-desc">Ask your questions only after I wake up &mdash; I'll listen until you go quiet</div>
+          </div>
+          <div class="how-step">
+            <div class="step-title">3 · I'll answer you</div>
+            <div class="step-desc">I speak the answer aloud and show it on screen</div>
+          </div>
         </div>
 
         <div class="legend">
@@ -946,20 +1028,26 @@
       showHints(false);
       showCaption('You said', '"' + question + '"', answer);
 
+      /* Tablet stays here indefinitely until Python explicitly calls showWelcome()
+         after tts.say() finishes blocking. */
+    }
 
+    /* No speech detected — show friendly error then reset */
+    function showNoSpeech() {
+      clearAuto();
+      setPill('nospeech', 'Missed');
+      setBubble('nospeech');
+      showWaves(false);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '&#x1F614;'; /* sad face emoji */
+      showHints(false);
+      showCaption('', "Sorry, I couldn't catch that.", 'Please speak a little louder or try again.');
 
-      /* After speaking, return to welcome */
       autoTimer = setTimeout(function () {
-        setPill('idle', 'Ready');
-        setBubble('idle');
-        showWaves(false);
-        showThinkOrbit(false);
-        bubbleWrap.style.display = 'none';
-        pill.style.display = 'none';
-        micIcon.innerHTML = '';
-        showHints(true);
-        showCaption('', '', '');
-      }, 10000);
+        showWelcome();
+      }, 4000);
     }
   </script>
 </body>

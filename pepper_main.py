@@ -42,22 +42,31 @@ GOOGLE_STT_KEY  = "AIzaSyBf23uxEGc9upLpirqrdtnfUPKD5um5sDY"   # <-- paste your k
 
 AUDIO_PATH        = "/tmp/laurimate_input.wav" # temp WAV on robot
 SAMPLE_RATE       = 16000                       # Hz — Pepper front mic
-MIN_RECORD_SEC    = 1.5   # always record at least this long
-MAX_RECORD_SEC    = 10    # hard cap for very long questions
-SILENCE_TIMEOUT   = 1.2  # seconds of silence before stopping early
+MIN_RECORD_SEC    = 4.0   # always record at least this long
+MAX_RECORD_SEC    = 600   # essentially infinite — record until silence
+SILENCE_TIMEOUT   = 3.0   # seconds of continuous silence before stopping
 STT_LANGUAGE      = "en-US"                     # "fi-FI" for Finnish
 
 # Instant responses — bypass STT + Firebase for speed (<100 ms)
 INSTANT_CACHE = {
-    "hello":        "Hello! I am Laurimate, your campus assistant. How can I help you?",
-    "hi":           "Hi there! How can I help you today?",
-    "hey":          "Hey! What can I help you with?",
-    "hey laurimate": "Yes, I am here! How can I help you?",
-    "thank you":    "You are welcome! Is there anything else I can help you with?",
-    "thanks":       "Happy to help! Let me know if you need anything else.",
-    "bye":          "Goodbye! Have a wonderful day!",
-    "goodbye":      "See you later! Have a great day!",
-    "see you":      "Take care! Have a great day!",
+    "hello":        "Hello, I'm listening.",
+    "hi":           "Hi there, how can I help?",
+    "hey":          "Hey! What's your question?",
+    "hey laurimate": "Yes, I am here.",
+    
+    # Aliases for mispronunciations / variants
+    "ello":         "Hello, I'm listening.",
+    "llo":          "Hello, I'm listening.",
+    "ey":           "Hey! What's your question?",
+    "hey lauri":    "Yes, I am here.",
+    "hey laura":    "Yes, I am here.",
+    "i":            "Yes, I am listening.",
+
+    "thank you":    "You are welcome!",
+    "thanks":       "Happy to help!",
+    "bye":          "Goodbye!",
+    "goodbye":      "See you later!",
+    "see you":      "Take care!",
 }
 
 GOOGLE_STT_URL  = (
@@ -71,7 +80,8 @@ GOOGLE_STT_URL  = (
 # ------------------------------------------------------------------
 TRIGGER_VOCAB = [
     # common openers — most questions start with one of these
-    "hello", "hi", "hey", "excuse me", "sorry", "hey laurimate"
+    "hello", "hi", "hey", "excuse me", "sorry", "hey laurimate",
+    "ello", "llo", "ey", "hey lauri", "hey laura",
     "what", "where", "when", "how", "who", "why", "is", "are", "can",
     "do", "does", "tell", "show", "help", "i", "the", "a",
     # campus topics
@@ -188,6 +198,11 @@ def set_thinking(tablet):
         try: tablet.executeJS("showThinking();")
         except Exception: pass
 
+def set_no_speech(tablet):
+    if tablet:
+        try: tablet.executeJS("showNoSpeech();")
+        except Exception: pass
+
 def say_and_show(tts, tablet, question, answer, source="ai"):
     if isinstance(answer, unicode):
         answer = answer.encode("utf-8")
@@ -207,7 +222,8 @@ def say_and_show(tts, tablet, question, answer, source="ai"):
         except Exception as e:
             print("[Laurimate] Tablet JS error: {}".format(e))
 
-    tts.say(answer)
+    tts.say(answer)  # blocking — returns only when speech finishes
+    # Session manager in _handle_speech will decide next tablet state
 
 
 # ==================================================================
@@ -221,14 +237,50 @@ class WordModule(ALModule):
     sends to Google STT, then forwards the full transcript to Firebase.
     """
 
+    IDLE_TIMEOUT = 60   # seconds of silence before returning to welcome
+
     def __init__(self, name, tablet_proxy):
         ALModule.__init__(self, name)
-        self.tablet   = tablet_proxy
-        self.tts      = ALProxy("ALTextToSpeech",      PEPPER_IP, PEPPER_PORT)
-        self.speech   = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
-        self.recorder = ALProxy("ALAudioRecorder",     PEPPER_IP, PEPPER_PORT)
-        self.memory   = ALProxy("ALMemory",            PEPPER_IP, PEPPER_PORT)
-        self.busy     = False   # prevent overlapping captures
+        self.tablet         = tablet_proxy
+        self.tts            = ALProxy("ALTextToSpeech",      PEPPER_IP, PEPPER_PORT)
+        self.speech         = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
+        self.recorder       = ALProxy("ALAudioRecorder",     PEPPER_IP, PEPPER_PORT)
+        self.memory         = ALProxy("ALMemory",            PEPPER_IP, PEPPER_PORT)
+        self.busy           = False   # prevent overlapping captures
+        self.session_active = False   # True while in a conversation session
+        self.idle_timer     = None    # threading.Timer for 60 s idle end
+
+    # ----------------------------------------------------------
+    def _cancel_idle_timer(self):
+        """Pause the idle countdown (used when Pepper is giving a long answer)."""
+        if self.idle_timer:
+            self.idle_timer.cancel()
+            self.idle_timer = None
+        print("[Laurimate] Idle timer paused during speech.")
+
+    def _reset_idle_timer(self):
+        """Cancel existing idle timer and start a fresh 60-second countdown."""
+        if self.idle_timer:
+            self.idle_timer.cancel()
+        self.idle_timer = threading.Timer(self.IDLE_TIMEOUT, self._end_session)
+        self.idle_timer.daemon = True
+        self.idle_timer.start()
+        print("[Laurimate] Idle timer reset — {} s to welcome screen.".format(self.IDLE_TIMEOUT))
+
+    def _start_session(self):
+        """Begin a new 1-minute conversation session."""
+        self.session_active = True
+        print("[Laurimate] Session started — {} s idle timeout active.".format(self.IDLE_TIMEOUT))
+        self._reset_idle_timer()
+
+    def _end_session(self):
+        """Called by idle timer when 60 s of silence passes — return to welcome."""
+        self.session_active = False
+        self.idle_timer = None
+        print("[Laurimate] Session ended — idle timeout reached. Returning to welcome.")
+        if self.tablet:
+            try: self.tablet.executeJS("showWelcome();")
+            except Exception: pass
 
     # ----------------------------------------------------------
     def on_word_recognized(self, key, value):
@@ -258,6 +310,12 @@ class WordModule(ALModule):
 
         print("[Laurimate] Speech trigger: '{}' ({:.0%})".format(trigger_word, conf))
 
+        # Start session on first word; reset idle timer if already active
+        if not self.session_active:
+            self._start_session()
+        else:
+            self._reset_idle_timer()
+
         # Hand off to a background thread so the NAOqi callback returns fast
         self.busy = True
         t = threading.Thread(target=self._handle_speech, args=(trigger_word,))
@@ -265,99 +323,120 @@ class WordModule(ALModule):
         t.start()
 
     # ----------------------------------------------------------
+    def _record_once(self):
+        """
+        Record one utterance using silence detection.
+        Returns elapsed seconds, or -1 on error.
+        """
+        try:
+            self.recorder.startMicrophonesRecording(
+                AUDIO_PATH, "wav", SAMPLE_RATE, (0, 0, 1, 0)
+            )
+            elapsed       = 0.0
+            poll_interval = 0.2
+            
+            # Track how long it has been since we LAST saw speech
+            time_since_last_speech = 0.0
+
+            while elapsed < MAX_RECORD_SEC and self.session_active:
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+                
+                # Start evaluating silence only after MIN_RECORD_SEC
+                if elapsed >= MIN_RECORD_SEC:
+                    try:
+                        speaking = self.memory.getData("SpeechDetected")
+                    except Exception:
+                        speaking = 1
+                        
+                    if speaking == 1:
+                        # User is speaking right now — reset the silence completely
+                        time_since_last_speech = 0.0
+                    else:
+                        # User is currently silent — accumulate time
+                        time_since_last_speech += poll_interval
+                        
+                    # Stop if they've been continuously silent for the timeout duration
+                    if time_since_last_speech >= SILENCE_TIMEOUT:
+                        print("[Laurimate] Silence detected ({}s continuous), stopping.".format(SILENCE_TIMEOUT))
+                        break
+
+            self.recorder.stopMicrophonesRecording()
+            print("[Laurimate] Recording complete ({:.1f}s).".format(elapsed))
+            return elapsed
+        except Exception as e:
+            print("[Laurimate] Recording error: {}".format(e))
+            try: self.recorder.stopMicrophonesRecording()
+            except Exception: pass
+            return -1
+
+    # ----------------------------------------------------------
     def _handle_speech(self, trigger_word):
         """
         Background thread:
-          0. Check instant cache  ->  speak immediately (no STT/Firebase)
-          1. Pause speech recognizer
-          2. Record with silence detection (stops early when user goes quiet)
-          3. Google STT  ->  Firebase  ->  speak
-          4. Resume recognizer
+          0. Instant cache → speak, then drop straight into the recording loop
+          1. Otherwise → recording loop immediately (captures the trigger + rest of question)
+
+        Recording loop (runs while session_active):
+          a. Show listening on tablet
+          b. Record until silence or MAX_RECORD_SEC
+          c. STT → if transcript: Firebase → respond; if none: stay listening
+          d. Reset idle timer after each response, loop back to (a)
         """
         try:
-            # ---- 0. Instant cache — answer greetings in <100 ms ----
+            # ---- 0. Instant cache — answer without going through STT ----
             instant = INSTANT_CACHE.get(trigger_word)
             if instant:
                 print("[Laurimate] Instant cache hit for '{}'".format(trigger_word))
                 say_and_show(self.tts, self.tablet, trigger_word, instant, "faq")
-                return
+                self._reset_idle_timer()
 
-            # ---- 1. Pause recognizer, start recording ----
-            self.speech.pause(True)
-            set_listening(self.tablet)
+            # ---- Note on VAD (Voice Activity Detection) ----
+            # We explicitly do NOT pause ALSpeechRecognition here anymore.
+            # If we pause it, NAOqi stops updating the "SpeechDetected" memory key,
+            # which causes our silence-detection loop to always falsely detect silence.
+            # overlapping word-spotter triggers are safely ignored by 'self.busy = True'.
 
-            try:
-                # Channel tuple: (left_ear, right_ear, front_mic, rear_mic)
-                self.recorder.startMicrophonesRecording(
-                    AUDIO_PATH, "wav", SAMPLE_RATE, (0, 0, 1, 0)
-                )
-                print("[Laurimate] Recording (max {}s, silence detection on)...".format(
-                    MAX_RECORD_SEC))
+            # ---- Continuous recording loop ----
+            while self.session_active:
+                set_listening(self.tablet)
 
-                # ---- 2. Silence detection loop ----
-                elapsed        = 0.0
-                silence_secs   = 0.0
-                poll_interval  = 0.3   # check every 300 ms
+                elapsed = self._record_once()
+                if elapsed < 0:          # recording error
+                    break
+                if not self.session_active:  # idle timer fired during recording
+                    break
 
-                while elapsed < MAX_RECORD_SEC:
-                    time.sleep(poll_interval)
-                    elapsed += poll_interval
+                # Flush WAV to disk
+                time.sleep(0.3)
 
-                    # Only check for silence after the minimum record time
-                    if elapsed >= MIN_RECORD_SEC:
-                        try:
-                            speaking = self.memory.getData("SpeechDetected")
-                        except Exception:
-                            speaking = 1  # assume still speaking on error
+                # Transcribe
+                set_thinking(self.tablet)
+                transcript = transcribe_audio(AUDIO_PATH)
 
-                        if speaking == 0:
-                            silence_secs += poll_interval
-                        else:
-                            silence_secs = 0  # reset on new speech burst
+                if not transcript:
+                    # No speech detected — stay listening, idle timer handles session end
+                    print("[Laurimate] No speech in recording — staying in session.")
+                    continue
 
-                        if silence_secs >= SILENCE_TIMEOUT:
-                            print("[Laurimate] Silence detected after {:.1f}s, stopping.".format(
-                                elapsed))
-                            break
+                # Got a real utterance — suspend idle timer so it doesn't timeout mid-speech
+                self._cancel_idle_timer()
 
-                self.recorder.stopMicrophonesRecording()
-                print("[Laurimate] Recording complete ({:.1f}s).".format(elapsed))
+                reply, source = ask_firebase(transcript)
+                if reply:
+                    say_and_show(self.tts, self.tablet, transcript, reply, source)
+                else:
+                    self.tts.say(
+                        "I am sorry, I could not reach my knowledge base. "
+                        "Please try again or ask a staff member."
+                    )
 
-            except Exception as e:
-                print("[Laurimate] Recording error: {}".format(e))
-                self.speech.pause(False)
-                return
-
-            # Small pause so WAV file is fully flushed to disk
-            time.sleep(0.3)
-
-            # ---- 3. Transcribe with Google STT ----
-            set_thinking(self.tablet)
-            transcript = transcribe_audio(AUDIO_PATH)
-
-            if not transcript:
-                self.tts.say("Sorry, I did not catch that. Please try again.")
-                return
-
-            # ---- Ask Gemini via Firebase ----
-            reply, source = ask_firebase(transcript)
-
-            if reply:
-                say_and_show(self.tts, self.tablet, transcript, reply, source)
-            else:
-                self.tts.say(
-                    "I am sorry, I could not reach my knowledge base. "
-                    "Please try again or ask a staff member."
-                )
+                self._reset_idle_timer()
+                # Loop immediately — start recording for the next follow-up
 
         finally:
-            # Always resume the recognizer and clear busy flag
-            try:
-                self.speech.pause(False)
-            except Exception:
-                pass
             self.busy = False
-            print("[Laurimate] Ready for next question.")
+            print("[Laurimate] Session loop ended — ready for next session.")
 
 
 # ==================================================================
