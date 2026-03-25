@@ -323,6 +323,6 @@ Done till now, 3.16 ra 17 ma gareko :
 
 To do :
 1 - ai lai train garna parne : test.html page bata test garne (database : functions\data\campus.json)
-2 - and also when its throwing an error like sorrry i couldn'y catch that.. at that time show an error display instead of that thinking screen, make like didnt understand sorry ic  coudln catch that
-3 - gestures
-4 - answer from memory
+2 - gestures
+3 - answer from memory
+4 - now upgrade the home page of the tablet like the default page which comes on the start of the tablet, make it kind of modern design but supportive on the the tablet android version, just upgrade that page only other page are already perfect, make changes in that page like there are lot of text make it kinda beautifull
