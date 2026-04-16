@@ -42,9 +42,9 @@ GOOGLE_STT_KEY  = "AIzaSyBf23uxEGc9upLpirqrdtnfUPKD5um5sDY"   # <-- paste your k
 
 AUDIO_PATH        = "/tmp/laurimate_input.wav" # temp WAV on robot
 SAMPLE_RATE       = 16000                       # Hz — Pepper front mic
-MIN_RECORD_SEC    = 4.0   # always record at least this long
+MIN_RECORD_SEC    = 2.0   # always record at least this long
 MAX_RECORD_SEC    = 600   # essentially infinite — record until silence
-SILENCE_TIMEOUT   = 3.0   # seconds of continuous silence before stopping
+SILENCE_TIMEOUT   = 2.0   # seconds of continuous silence before stopping
 STT_LANGUAGE      = "en-US"                     # "fi-FI" for Finnish
 
 # Instant responses — bypass STT + Firebase for speed (<100 ms)
@@ -163,6 +163,8 @@ def transcribe_audio(wav_path):
 def ask_firebase(question):
     """POST full transcript to Firebase, return (reply, source)."""
     try:
+        if isinstance(question, unicode):
+            question = question.encode("utf-8")
         print("[Laurimate] -> Firebase: '{}'".format(question))
         payload = json.dumps({"message": question})
         req = urllib2.Request(
@@ -172,8 +174,10 @@ def ask_firebase(question):
         )
         resp   = urllib2.urlopen(req, timeout=15)
         data   = json.loads(resp.read())
-        reply  = data.get("reply", "").strip()
+        reply  = data.get("reply", u"").strip()
         source = data.get("source", "gemini")
+        if isinstance(reply, unicode):
+            reply = reply.encode("utf-8")
         print("[Laurimate] <- Firebase: {}".format(reply[:80]))
         return (reply if reply else None), source
     except urllib2.URLError as e:
