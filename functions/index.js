@@ -81,7 +81,7 @@ exports.chatWithGemini = onRequest(
           contents: [
             {
               role: "user",
-              parts: [{ text: SYSTEM_PROMPT }]
+              parts: [{ text: SYSTEM_PROMPT + "\n\nCURRENT DATE AND TIME: " + new Date().toLocaleString("en-FI", { timeZone: "Europe/Helsinki", weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) + ". Always use this when answering questions about the current date, time, or day." }]
             },
             {
               role: "model",
@@ -93,7 +93,7 @@ exports.chatWithGemini = onRequest(
             }
           ],
           generationConfig: {
-            maxOutputTokens: 200,
+            maxOutputTokens: 500,
             temperature: 0.5
           }
         })

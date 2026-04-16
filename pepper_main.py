@@ -445,17 +445,41 @@ class WordModule(ALModule):
 
 def setup_speech(speech):
     """Clean up any stale subscription then configure vocabulary."""
+
+    # 1. Unsubscribe ALL existing subscribers — not just ours.
+    #    NAOqi keeps the grammar alive as long as ANY subscriber exists.
     try:
-        speech.unsubscribe("Laurimate")
-        print("[Laurimate] Cleaned up stale speech subscriber.")
+        subs = speech.getSubscribersInfo()
+        for sub in subs:
+            name = sub[0] if isinstance(sub, (list, tuple)) else str(sub)
+            try:
+                speech.unsubscribe(name)
+                print("[Laurimate] Unsubscribed stale subscriber: {}".format(name))
+            except Exception:
+                pass
     except Exception:
-        pass
+        # Fallback: just try our own name
+        try:
+            speech.unsubscribe("Laurimate")
+            print("[Laurimate] Cleaned up stale Laurimate subscriber.")
+        except Exception:
+            pass
+
     try:
         speech.pause(True)
     except Exception:
         pass
-    # wordSpottingEnabled=True fires even for words OUTSIDE the vocab
-    speech.setVocabulary(TRIGGER_VOCAB, True)
+
+    # 2. Set vocabulary — should succeed now that all subscribers are gone
+    try:
+        speech.setVocabulary(TRIGGER_VOCAB, True)
+        print("[Laurimate] Vocabulary set successfully.")
+    except RuntimeError as e:
+        if "already exists" in str(e):
+            print("[Laurimate] Grammar already loaded — reusing.")
+        else:
+            raise
+
     try:
         speech.pause(False)
     except Exception:
