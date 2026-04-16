@@ -447,7 +447,6 @@ class WordModule(ALModule):
 # Speech recognition setup
 # ==================================================================
 
-
 def setup_speech(speech):
     """Clean up any stale subscription then configure vocabulary."""
 
