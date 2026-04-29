@@ -8,13 +8,26 @@ const campusData = require("./data/campus.json");
 
 function buildCampusContext(data) {
   var lines = ["LAUREA UNIVERSITY OF APPLIED SCIENCES - CAMPUS INFORMATION\n"];
-  var faqs = data.faqs || [];
-  for (var i = 0; i < faqs.length; i++) {
-    var item = faqs[i];
-    if (item.question && item.answer) {
-      lines.push("Q: " + item.question);
-      lines.push("A: " + item.answer);
-      lines.push("");
+
+  // New format: data.sections.{A,B,...}.questions.{1,2,...}.{q,a}
+  var sections = data.sections || {};
+  var sectionKeys = Object.keys(sections).sort();
+  for (var s = 0; s < sectionKeys.length; s++) {
+    var section = sections[sectionKeys[s]];
+    if (section.title) {
+      lines.push("--- " + section.title + " ---");
+    }
+    var questions = section.questions || {};
+    var qKeys = Object.keys(questions).sort(function(a, b) {
+      return parseInt(a) - parseInt(b);
+    });
+    for (var i = 0; i < qKeys.length; i++) {
+      var item = questions[qKeys[i]];
+      if (item.q && item.a) {
+        lines.push("Q: " + item.q);
+        lines.push("A: " + item.a);
+        lines.push("");
+      }
     }
   }
   return lines.join("\n");

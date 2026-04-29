@@ -41,11 +41,47 @@ FIREBASE_URL      = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app"
 GOOGLE_STT_KEY  = "AIzaSyBf23uxEGc9upLpirqrdtnfUPKD5um5sDY"   # <-- paste your key here
 
 AUDIO_PATH        = "/tmp/laurimate_input.wav" # temp WAV on robot
+AUDIO_CHUNK_A     = "/tmp/laurimate_chunk_a.wav" # alternating chunk files
+AUDIO_CHUNK_B     = "/tmp/laurimate_chunk_b.wav"
 SAMPLE_RATE       = 16000                       # Hz — Pepper front mic
-MIN_RECORD_SEC    = 2.0   # always record at least this long
+CHUNK_DURATION    = 2.0   # seconds per live-transcription chunk
+MIN_RECORD_SEC    = 1.0   # always record at least this long
 MAX_RECORD_SEC    = 600   # essentially infinite — record until silence
-SILENCE_TIMEOUT   = 2.0   # seconds of continuous silence before stopping
+SILENCE_TIMEOUT   = 1.5   # seconds of continuous silence before stopping
 STT_LANGUAGE      = "en-US"                     # "fi-FI" for Finnish
+
+# ------------------------------------------------------------------
+# Gesture configuration
+# ------------------------------------------------------------------
+# Built-in animation paths (posture = Stand for Pepper)
+GESTURE_HEY       = "animations/Stand/Gestures/Hey_1"
+GESTURE_WAVE      = "animations/Stand/Gestures/Hey_3"
+GESTURE_BYE       = "animations/Stand/Gestures/Hey_2"
+GESTURE_YES       = "animations/Stand/Gestures/Yes_1"
+GESTURE_NO        = "animations/Stand/Gestures/No_1"
+GESTURE_EXPLAIN   = "animations/Stand/Gestures/Explain_1"
+GESTURE_THINK     = "animations/Stand/Gestures/Think_1"
+GESTURE_SHOW      = "animations/Stand/Gestures/ShowTablet_1"
+GESTURE_ENTHUSE   = "animations/Stand/Gestures/Enthusiastic_4"
+
+# Map trigger words → specific gesture path (for instant responses)
+GREETING_GESTURES = {
+    "hello":        GESTURE_HEY,
+    "hi":           GESTURE_WAVE,
+    "hey":          GESTURE_WAVE,
+    "hey laurimate": GESTURE_HEY,
+    "ello":         GESTURE_HEY,
+    "llo":          GESTURE_HEY,
+    "ey":           GESTURE_WAVE,
+    "hey lauri":    GESTURE_HEY,
+    "hey laura":    GESTURE_HEY,
+    "i":            GESTURE_HEY,
+    "thank you":    GESTURE_YES,
+    "thanks":       GESTURE_YES,
+    "bye":          GESTURE_BYE,
+    "goodbye":      GESTURE_BYE,
+    "see you":      GESTURE_BYE,
+}
 
 # Instant responses — bypass STT + Firebase for speed (<100 ms)
 INSTANT_CACHE = {
@@ -207,7 +243,40 @@ def set_no_speech(tablet):
         try: tablet.executeJS("showNoSpeech();")
         except Exception: pass
 
-def say_and_show(tts, tablet, question, answer, source="ai"):
+def set_transcript(tablet, transcript):
+    """Show user's transcribed question on tablet immediately."""
+    if tablet:
+        try:
+            t_js = transcript.replace("\\", "\\\\").replace("'", "\\'")
+            tablet.executeJS("showTranscript('{}');".format(t_js))
+        except Exception: pass
+
+def set_live_text(tablet, text):
+    """Show live-building transcript on tablet while user is still speaking."""
+    if tablet:
+        try:
+            t_js = text.replace("\\", "\\\\").replace("'", "\\'")
+            tablet.executeJS("showLiveText('{}');".format(t_js))
+        except Exception: pass
+
+def play_gesture(animation_player, gesture_path):
+    """Run a gesture animation in a background thread (non-blocking)."""
+    def _run():
+        try:
+            animation_player.run(gesture_path)
+        except Exception as e:
+            print("[Laurimate] Gesture '{}' error: {}".format(gesture_path, e))
+    t = threading.Thread(target=_run)
+    t.daemon = True
+    t.start()
+
+def say_and_show(tts, tablet, question, answer, source="ai",
+                 gesture=None, animation_player=None):
+    """
+    Show answer on tablet and speak with body movement.
+    If 'gesture' + 'animation_player' are given, the gesture runs in a
+    background thread while TTS speaks simultaneously.
+    """
     if isinstance(answer, unicode):
         answer = answer.encode("utf-8")
     else:
@@ -226,7 +295,12 @@ def say_and_show(tts, tablet, question, answer, source="ai"):
         except Exception as e:
             print("[Laurimate] Tablet JS error: {}".format(e))
 
-    tts.say(answer)  # blocking — returns only when speech finishes
+    # Fire the gesture animation in a background thread (non-blocking)
+    if gesture and animation_player:
+        play_gesture(animation_player, gesture)
+
+    # Speak (blocking) — the gesture plays in parallel
+    tts.say(answer)
     # Session manager in _handle_speech will decide next tablet state
 
 
@@ -250,9 +324,26 @@ class WordModule(ALModule):
         self.speech         = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
         self.recorder       = ALProxy("ALAudioRecorder",     PEPPER_IP, PEPPER_PORT)
         self.memory         = ALProxy("ALMemory",            PEPPER_IP, PEPPER_PORT)
+        self.motion         = ALProxy("ALMotion",            PEPPER_IP, PEPPER_PORT)
+        self.animation      = ALProxy("ALAnimationPlayer",   PEPPER_IP, PEPPER_PORT)
         self.busy           = False   # prevent overlapping captures
         self.session_active = False   # True while in a conversation session
         self.idle_timer     = None    # threading.Timer for 60 s idle end
+
+        # Wake up the robot — enables motor stiffness so it can move
+        try:
+            self.motion.wakeUp()
+            print("[Laurimate] Robot woken up — motors enabled.")
+        except Exception as e:
+            print("[Laurimate] Could not wake up robot: {}".format(e))
+
+        # Enable speaking movement (Pepper moves while talking)
+        try:
+            speaking_move = ALProxy("ALSpeakingMovement", PEPPER_IP, PEPPER_PORT)
+            speaking_move.setEnabled(True)
+            print("[Laurimate] Speaking movement enabled.")
+        except Exception as e:
+            print("[Laurimate] Could not enable speaking movement: {}".format(e))
 
     # ----------------------------------------------------------
     def _cancel_idle_timer(self):
@@ -337,7 +428,7 @@ class WordModule(ALModule):
                 AUDIO_PATH, "wav", SAMPLE_RATE, (0, 0, 1, 0)
             )
             elapsed       = 0.0
-            poll_interval = 0.2
+            poll_interval = 0.15
             
             # Track how long it has been since we LAST saw speech
             time_since_last_speech = 0.0
@@ -375,16 +466,91 @@ class WordModule(ALModule):
             return -1
 
     # ----------------------------------------------------------
+    def _record_live(self):
+        """
+        Record in 2-second chunks using two alternating WAV files.
+        Each chunk is sent to Google STT in a background thread.
+        Live transcript is shown on the tablet as it builds up.
+        Returns the full accumulated transcript, or None.
+        """
+        paths = [AUDIO_CHUNK_A, AUDIO_CHUNK_B]
+        accumulated = []          # list of transcribed chunk texts
+        chunk_idx = 0
+        silent_after_speech = 0   # consecutive empty chunks after speech
+        prev_thread = None
+        prev_result = [None]      # mutable container for thread return
+
+        while self.session_active and chunk_idx < 30:
+            path = paths[chunk_idx % 2]
+
+            # ---- Record one chunk ----
+            try:
+                self.recorder.startMicrophonesRecording(
+                    path, "wav", SAMPLE_RATE, (0, 0, 1, 0)
+                )
+            except Exception as e:
+                print("[Laurimate] Chunk start error: {}".format(e))
+                break
+
+            time.sleep(CHUNK_DURATION)
+
+            try:
+                self.recorder.stopMicrophonesRecording()
+            except Exception:
+                pass
+
+            # ---- Collect result from PREVIOUS chunk's STT ----
+            if prev_thread is not None:
+                prev_thread.join(timeout=5)
+                if prev_result[0]:
+                    accumulated.append(prev_result[0])
+                    live_text = " ".join(accumulated)
+                    set_live_text(self.tablet, live_text)
+                    print("[Laurimate] Live: '{}'".format(live_text))
+                    silent_after_speech = 0
+                else:
+                    if accumulated:
+                        silent_after_speech += 1
+
+            # ---- User stopped speaking? ----
+            if silent_after_speech >= 1 and accumulated:
+                print("[Laurimate] Silence after speech — done recording.")
+                break
+
+            # ---- Start STT for THIS chunk in background ----
+            prev_result = [None]
+            chunk_path = path   # capture for closure
+            chunk_res = prev_result
+            def _stt(p=chunk_path, r=chunk_res):
+                r[0] = transcribe_audio(p)
+            prev_thread = threading.Thread(target=_stt)
+            prev_thread.daemon = True
+            prev_thread.start()
+
+            chunk_idx += 1
+
+        # ---- Collect last pending STT ----
+        if prev_thread is not None:
+            prev_thread.join(timeout=5)
+            if prev_result[0]:
+                accumulated.append(prev_result[0])
+                live_text = " ".join(accumulated)
+                set_live_text(self.tablet, live_text)
+
+        full = " ".join(accumulated).strip()
+        return full if full else None
+
+    # ----------------------------------------------------------
     def _handle_speech(self, trigger_word):
         """
         Background thread:
           0. Instant cache → speak, then drop straight into the recording loop
-          1. Otherwise → recording loop immediately (captures the trigger + rest of question)
+          1. Otherwise → live chunked recording with real-time STT display
 
         Recording loop (runs while session_active):
           a. Show listening on tablet
-          b. Record until silence or MAX_RECORD_SEC
-          c. STT → if transcript: Firebase → respond; if none: stay listening
+          b. Record in chunks with live STT → show text on tablet
+          c. If transcript: Firebase → respond; if none: stay listening
           d. Reset idle timer after each response, loop back to (a)
         """
         try:
@@ -392,44 +558,47 @@ class WordModule(ALModule):
             instant = INSTANT_CACHE.get(trigger_word)
             if instant:
                 print("[Laurimate] Instant cache hit for '{}'".format(trigger_word))
-                say_and_show(self.tts, self.tablet, trigger_word, instant, "faq")
+                gesture = GREETING_GESTURES.get(trigger_word)
+                say_and_show(self.tts, self.tablet, trigger_word, instant, "faq",
+                             gesture, self.animation)
                 self._reset_idle_timer()
-
-            # ---- Note on VAD (Voice Activity Detection) ----
-            # We explicitly do NOT pause ALSpeechRecognition here anymore.
-            # If we pause it, NAOqi stops updating the "SpeechDetected" memory key,
-            # which causes our silence-detection loop to always falsely detect silence.
-            # overlapping word-spotter triggers are safely ignored by 'self.busy = True'.
 
             # ---- Continuous recording loop ----
             while self.session_active:
                 set_listening(self.tablet)
 
-                elapsed = self._record_once()
-                if elapsed < 0:          # recording error
-                    break
-                if not self.session_active:  # idle timer fired during recording
-                    break
+                transcript = self._record_live()
 
-                # Flush WAV to disk
-                time.sleep(0.3)
-
-                # Transcribe
-                set_thinking(self.tablet)
-                transcript = transcribe_audio(AUDIO_PATH)
+                if not self.session_active:
+                    break
 
                 if not transcript:
-                    # No speech detected — stay listening, idle timer handles session end
                     print("[Laurimate] No speech in recording — staying in session.")
                     continue
 
-                # Got a real utterance — suspend idle timer so it doesn't timeout mid-speech
+                # Show final transcript + thinking state
+                set_transcript(self.tablet, transcript)
+
+                # Suspend idle timer so it doesn't timeout mid-response
                 self._cancel_idle_timer()
 
                 reply, source = ask_firebase(transcript)
                 if reply:
-                    say_and_show(self.tts, self.tablet, transcript, reply, source)
+                    # Pick a contextual gesture for the start of long answers
+                    resp_gesture = None
+                    lower_t = transcript.lower()
+                    if any(g in lower_t for g in ["where", "show", "find", "location"]):
+                        resp_gesture = GESTURE_SHOW
+                    elif any(g in lower_t for g in ["how", "explain", "what is", "tell me"]):
+                        resp_gesture = GESTURE_EXPLAIN
+                    elif any(g in lower_t for g in ["thank", "great", "good", "awesome"]):
+                        resp_gesture = GESTURE_ENTHUSE
+                    else:
+                        resp_gesture = GESTURE_EXPLAIN  # default gesture for answers
+                    say_and_show(self.tts, self.tablet, transcript, reply, source,
+                                 resp_gesture, self.animation)
                 else:
+                    play_gesture(self.animation, GESTURE_NO)
                     self.tts.say(
                         "I am sorry, I could not reach my knowledge base. "
                         "Please try again or ask a staff member."
@@ -500,7 +669,31 @@ def main():
     # 1. NAOqi Broker
     broker = ALBroker("PythonBroker", "0.0.0.0", 0, PEPPER_IP, PEPPER_PORT)
 
-    # 2. Tablet (optional)
+    # 2. Wake up robot — MUST be done first so motors are stiffened
+    motion = ALProxy("ALMotion", PEPPER_IP, PEPPER_PORT)
+    try:
+        motion.wakeUp()
+        print("[Laurimate] Robot woken up — motors ON.")
+    except Exception as e:
+        print("[Laurimate] Could not wake robot: {}".format(e))
+
+    # 2b. Enable autonomous life (basic awareness) so Pepper tracks people
+    try:
+        auto_life = ALProxy("ALAutonomousLife", PEPPER_IP, PEPPER_PORT)
+        auto_life.setState("solitary")
+        print("[Laurimate] Autonomous life set to 'solitary'.")
+    except Exception as e:
+        print("[Laurimate] Autonomous life not available: {}".format(e))
+
+    # 2c. Enable speaking movement — Pepper moves arms/head while talking
+    try:
+        speaking_move = ALProxy("ALSpeakingMovement", PEPPER_IP, PEPPER_PORT)
+        speaking_move.setEnabled(True)
+        print("[Laurimate] Speaking movement ENABLED.")
+    except Exception as e:
+        print("[Laurimate] Speaking movement not available: {}".format(e))
+
+    # 3. Tablet (optional)
     tablet = None
     try:
         tablet = ALProxy("ALTabletService", PEPPER_IP, PEPPER_PORT)
@@ -510,14 +703,14 @@ def main():
     except Exception as e:
         print("[Laurimate] Tablet not available: {}".format(e))
 
-    # 3. Create module
+    # 4. Create module
     LaurimateModule = WordModule("LaurimateModule", tablet)
 
-    # 4. Set up speech recognition (trigger only)
+    # 5. Set up speech recognition (trigger only)
     speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
     setup_speech(speech)
 
-    # 5. Subscribe to WordRecognized event
+    # 6. Subscribe to WordRecognized event
     memory = ALProxy("ALMemory", PEPPER_IP, PEPPER_PORT)
     memory.subscribeToEvent(
         "WordRecognized",
@@ -525,16 +718,19 @@ def main():
         "on_word_recognized",
     )
 
-    # 6. Start recognizer
+    # 7. Start recognizer
     speech.subscribe("Laurimate")
 
-    # 7. Welcome
+    # 8. Welcome — play a wave gesture while speaking
     tts = ALProxy("ALTextToSpeech", PEPPER_IP, PEPPER_PORT)
+    anim_player = ALProxy("ALAnimationPlayer", PEPPER_IP, PEPPER_PORT)
     if tablet:
         try: tablet.executeJS("showWelcome();")
         except Exception: pass
 
     speech.pause(True)
+    # Fire wave gesture in background, then speak
+    play_gesture(anim_player, GESTURE_HEY)
     tts.say("Hello! I am Laurimate, your campus assistant. How can I help you?")
     speech.pause(False)
 

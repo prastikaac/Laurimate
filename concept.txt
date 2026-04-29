@@ -326,3 +326,8 @@ To do :
 2 - gestures
 3 - answer from memory
 4 - now upgrade the home page of the tablet like the default page which comes on the start of the tablet, make it kind of modern design but supportive on the the tablet android version, just upgrade that page only other page are already perfect, make changes in that page like there are lot of text make it kinda beautifull
+
+ansdatabase.json has the answer of the all questions in 
+
+
+there's a slight delay in listening like currently it records and then process and then listens so now make it to direclty start listening and showing in the screen using google STT
