@@ -19,6 +19,8 @@ import json
 import base64
 import urllib2
 import threading
+import random
+import threading
 import re
 
 from naoqi import ALProxy, ALModule, ALBroker
@@ -48,25 +50,23 @@ CHUNK_DURATION    = 2.0   # seconds per live-transcription chunk
 MIN_RECORD_SEC    = 1.0   # always record at least this long
 MAX_RECORD_SEC    = 600   # essentially infinite — record until silence
 SILENCE_TIMEOUT   = 1.5   # seconds of continuous silence before stopping
-STT_LANGUAGE      = "en-US"                     # "fi-FI" for Finnish
-
+STT_LANGUAGE      = "fi-FI"                     # Primary language (Finnish)
 # ------------------------------------------------------------------
 # Gesture configuration
 # ------------------------------------------------------------------
 # Built-in animation paths (posture = Stand for Pepper)
-GESTURE_HEY       = "animations/Stand/Gestures/Hey_1"
-GESTURE_WAVE      = "animations/Stand/Gestures/Hey_3"
-GESTURE_BYE       = "animations/Stand/Gestures/Hey_2"
-GESTURE_YES       = "animations/Stand/Gestures/Yes_1"
-GESTURE_NO        = "animations/Stand/Gestures/No_1"
-GESTURE_EXPLAIN   = "animations/Stand/Gestures/Explain_1"
-GESTURE_THINK     = "animations/Stand/Gestures/Think_1"
-GESTURE_SHOW      = "animations/Stand/Gestures/ShowTablet_1"
-GESTURE_ENTHUSE   = "animations/Stand/Gestures/Enthusiastic_4"
-
+GESTURE_HEY       = ["animations/Stand/Gestures/Hey_1", "animations/Stand/Gestures/Hey_4", "animations/Stand/Gestures/Hey_6"]
+GESTURE_WAVE      = ["animations/Stand/Gestures/Hey_3", "animations/Stand/Gestures/Hey_1"]
+GESTURE_BYE       = ["animations/Stand/Gestures/Hey_2"]
+GESTURE_YES       = ["animations/Stand/Gestures/Yes_1", "animations/Stand/Gestures/Yes_2", "animations/Stand/Gestures/Yes_3"]
+GESTURE_NO        = ["animations/Stand/Gestures/No_1", "animations/Stand/Gestures/No_3", "animations/Stand/Gestures/No_8", "animations/Stand/Gestures/No_9"]
+GESTURE_EXPLAIN   = ["animations/Stand/Gestures/Explain_1", "animations/Stand/Gestures/Explain_2", "animations/Stand/Gestures/Explain_3", "animations/Stand/Gestures/Explain_4", "animations/Stand/Gestures/Explain_5", "animations/Stand/Gestures/Explain_6", "animations/Stand/Gestures/Explain_7", "animations/Stand/Gestures/Explain_8"]
+GESTURE_THINK     = ["animations/Stand/Gestures/Thinking_1", "animations/Stand/Gestures/Thinking_3", "animations/Stand/Gestures/Thinking_4"]
+GESTURE_SHOW      = ["animations/Stand/Gestures/ShowTablet_1", "animations/Stand/Gestures/ShowTablet_2", "animations/Stand/Gestures/ShowTablet_3"]
+GESTURE_ENTHUSE   = ["animations/Stand/Gestures/Enthusiastic_4", "animations/Stand/Gestures/Enthusiastic_5"]
 # Map trigger words → specific gesture path (for instant responses)
 GREETING_GESTURES = {
-    "hello":        GESTURE_HEY,
+    "hello":        GESTURE_WAVE,
     "hi":           GESTURE_WAVE,
     "hey":          GESTURE_WAVE,
     "hey laurimate": GESTURE_HEY,
@@ -115,18 +115,23 @@ GOOGLE_STT_URL  = (
 # to be wide enough that word-spotting fires when the user speaks.
 # ------------------------------------------------------------------
 TRIGGER_VOCAB = [
-    # common openers — most questions start with one of these
+    # common openers (English)
     "hello", "hi", "hey", "excuse me", "sorry", "hey laurimate",
     "ello", "llo", "ey", "hey lauri", "hey laura",
     "what", "where", "when", "how", "who", "why", "is", "are", "can",
     "do", "does", "tell", "show", "help", "i", "the", "a",
+    # common openers (Finnish)
+    "hei", "moi", "terve", "huomenta", "anteeksi", "laurimate",
+    "mitä", "missä", "milloin", "miten", "kuka", "miksi", "onko", "voitko",
+    "kerro", "näytä", "auta", "minä", "se",
     # campus topics
     "wifi", "internet", "library", "canteen", "food", "toilet",
     "bathroom", "room", "classroom", "bus", "parking", "emergency",
     "student", "printing", "password", "card", "schedule", "exam",
     "moodle", "campus", "laurea", "laptop", "computer",
+    "kirjasto", "ruokala", "vessa", "luokka", "bussi", "pysäköinti",
     # farewells
-    "thank", "thanks", "bye", "goodbye",
+    "thank", "thanks", "bye", "goodbye", "kiitos", "hei hei", "näkemiin",
 ]
 
 # NAOqi global (required by NAOqi event system)
@@ -158,7 +163,15 @@ def transcribe_audio(wav_path):
                 "encoding":        "LINEAR16",
                 "sampleRateHertz": SAMPLE_RATE,
                 "languageCode":    STT_LANGUAGE,
+                "alternativeLanguageCodes": ["en-US"],
                 "model":           "default",
+                "speechContexts": [{
+                    "phrases": [
+                        "laurimate", "laurea", "leppävaara", "campus", "wifi",
+                        "minä", "mitä", "missä", "milloin", "ruokala", "kirjasto",
+                        "vessa", "opiskelija", "tietokone", "moi", "hei", "terve"
+                    ]
+                }]
             },
             "audio": {
                 "content": encoded
@@ -180,13 +193,17 @@ def transcribe_audio(wav_path):
 
         alt        = results[0].get("alternatives", [{}])[0]
         transcript = alt.get("transcript", "").strip()
+        if isinstance(transcript, unicode):
+            transcript = transcript.encode("utf-8")
+            
         confidence = alt.get("confidence", 0.0)
-        print("[Laurimate] STT transcript: '{}' ({:.0%})".format(transcript, confidence))
-        return transcript if transcript else None
+        lang_code  = results[0].get("languageCode", STT_LANGUAGE)
+        print("[Laurimate] STT transcript: '{}' ({:.0%} - {})".format(transcript, confidence, lang_code))
+        return (transcript, lang_code) if transcript else (None, lang_code)
 
     except urllib2.URLError as e:
         print("[Laurimate] STT network error: {}".format(e))
-        return None
+        return (None, STT_LANGUAGE)
     except Exception as e:
         print("[Laurimate] STT error: {}".format(e))
         return None
@@ -261,6 +278,10 @@ def set_live_text(tablet, text):
 
 def play_gesture(animation_player, gesture_path):
     """Run a gesture animation in a background thread (non-blocking)."""
+    if not gesture_path: return
+    if isinstance(gesture_path, list):
+        gesture_path = random.choice(gesture_path)
+
     def _run():
         try:
             animation_player.run(gesture_path)
@@ -271,11 +292,11 @@ def play_gesture(animation_player, gesture_path):
     t.start()
 
 def say_and_show(tts, tablet, question, answer, source="ai",
-                 gesture=None, animation_player=None):
+                 gesture=None, animation_player=None, animated_speech=None):
     """
     Show answer on tablet and speak with body movement.
-    If 'gesture' + 'animation_player' are given, the gesture runs in a
-    background thread while TTS speaks simultaneously.
+    Uses ALAnimatedSpeech (if provided) to ensure continuous movement
+    throughout the response without locking the robot's arms.
     """
     if isinstance(answer, unicode):
         answer = answer.encode("utf-8")
@@ -295,12 +316,20 @@ def say_and_show(tts, tablet, question, answer, source="ai",
         except Exception as e:
             print("[Laurimate] Tablet JS error: {}".format(e))
 
-    # Fire the gesture animation in a background thread (non-blocking)
-    if gesture and animation_player:
-        play_gesture(animation_player, gesture)
-
-    # Speak (blocking) — the gesture plays in parallel
-    tts.say(answer)
+    # Speak using ALAnimatedSpeech to prevent arm locking and enable continuous movement
+    if animated_speech:
+        if gesture:
+            if isinstance(gesture, list):
+                gesture = random.choice(gesture)
+            text_to_say = "^start({}) {}".format(gesture, answer)
+        else:
+            text_to_say = answer
+        animated_speech.say(text_to_say)
+    else:
+        # Fallback to older mechanism if animated_speech is not provided
+        if gesture and animation_player:
+            play_gesture(animation_player, gesture)
+        tts.say(answer)
     # Session manager in _handle_speech will decide next tablet state
 
 
@@ -326,6 +355,7 @@ class WordModule(ALModule):
         self.memory         = ALProxy("ALMemory",            PEPPER_IP, PEPPER_PORT)
         self.motion         = ALProxy("ALMotion",            PEPPER_IP, PEPPER_PORT)
         self.animation      = ALProxy("ALAnimationPlayer",   PEPPER_IP, PEPPER_PORT)
+        self.animated_speech = ALProxy("ALAnimatedSpeech",   PEPPER_IP, PEPPER_PORT)
         self.busy           = False   # prevent overlapping captures
         self.session_active = False   # True while in a conversation session
         self.idle_timer     = None    # threading.Timer for 60 s idle end
@@ -341,7 +371,8 @@ class WordModule(ALModule):
         try:
             speaking_move = ALProxy("ALSpeakingMovement", PEPPER_IP, PEPPER_PORT)
             speaking_move.setEnabled(True)
-            print("[Laurimate] Speaking movement enabled.")
+            speaking_move.setMode("contextual")
+            print("[Laurimate] Speaking movement enabled (contextual mode).")
         except Exception as e:
             print("[Laurimate] Could not enable speaking movement: {}".format(e))
 
@@ -479,31 +510,48 @@ class WordModule(ALModule):
         silent_after_speech = 0   # consecutive empty chunks after speech
         prev_thread = None
         prev_result = [None]      # mutable container for thread return
+        last_lang = STT_LANGUAGE
+
+        # Ensure not already recording from a previous crashed session
+        try:
+            self.recorder.stopMicrophonesRecording()
+        except Exception:
+            pass
+
+        # Start the FIRST chunk recording immediately
+        path = paths[0]
+        try:
+            self.recorder.startMicrophonesRecording(path, "wav", SAMPLE_RATE, (0, 0, 1, 0))
+        except Exception as e:
+            print("[Laurimate] Initial chunk start error: {}".format(e))
+            try: self.recorder.stopMicrophonesRecording()
+            except Exception: pass
+            time.sleep(0.2)
+            try: self.recorder.startMicrophonesRecording(path, "wav", SAMPLE_RATE, (0, 0, 1, 0))
+            except Exception: pass
 
         while self.session_active and chunk_idx < 30:
-            path = paths[chunk_idx % 2]
-
-            # ---- Record one chunk ----
-            try:
-                self.recorder.startMicrophonesRecording(
-                    path, "wav", SAMPLE_RATE, (0, 0, 1, 0)
-                )
-            except Exception as e:
-                print("[Laurimate] Chunk start error: {}".format(e))
-                break
-
             time.sleep(CHUNK_DURATION)
 
-            try:
-                self.recorder.stopMicrophonesRecording()
-            except Exception:
-                pass
+            # Stop current chunk
+            try: self.recorder.stopMicrophonesRecording()
+            except Exception: pass
+
+            # IMMEDIATELY start the next chunk to prevent audio gaps
+            next_path = paths[(chunk_idx + 1) % 2]
+            if chunk_idx + 1 < 30 and self.session_active:
+                try:
+                    self.recorder.startMicrophonesRecording(next_path, "wav", SAMPLE_RATE, (0, 0, 1, 0))
+                except Exception as e:
+                    print("[Laurimate] Next chunk start error: {}".format(e))
 
             # ---- Collect result from PREVIOUS chunk's STT ----
             if prev_thread is not None:
                 prev_thread.join(timeout=5)
-                if prev_result[0]:
-                    accumulated.append(prev_result[0])
+                res_transcript, res_lang = prev_result[0] if prev_result[0] else (None, STT_LANGUAGE)
+                if res_transcript:
+                    accumulated.append(res_transcript)
+                    last_lang = res_lang
                     live_text = " ".join(accumulated)
                     set_live_text(self.tablet, live_text)
                     print("[Laurimate] Live: '{}'".format(live_text))
@@ -513,7 +561,8 @@ class WordModule(ALModule):
                         silent_after_speech += 1
 
             # ---- User stopped speaking? ----
-            if silent_after_speech >= 1 and accumulated:
+            # Require 2 consecutive empty chunks (4s) before assuming user is done
+            if silent_after_speech >= 2 and accumulated:
                 print("[Laurimate] Silence after speech — done recording.")
                 break
 
@@ -527,18 +576,22 @@ class WordModule(ALModule):
             prev_thread.daemon = True
             prev_thread.start()
 
+            # Update path for the next loop iteration
+            path = next_path
             chunk_idx += 1
 
         # ---- Collect last pending STT ----
         if prev_thread is not None:
             prev_thread.join(timeout=5)
-            if prev_result[0]:
-                accumulated.append(prev_result[0])
+            res_transcript, res_lang = prev_result[0] if prev_result[0] else (None, STT_LANGUAGE)
+            if res_transcript:
+                accumulated.append(res_transcript)
+                last_lang = res_lang
                 live_text = " ".join(accumulated)
                 set_live_text(self.tablet, live_text)
 
         full = " ".join(accumulated).strip()
-        return full if full else None
+        return (full, last_lang) if full else (None, last_lang)
 
     # ----------------------------------------------------------
     def _handle_speech(self, trigger_word):
@@ -560,14 +613,14 @@ class WordModule(ALModule):
                 print("[Laurimate] Instant cache hit for '{}'".format(trigger_word))
                 gesture = GREETING_GESTURES.get(trigger_word)
                 say_and_show(self.tts, self.tablet, trigger_word, instant, "faq",
-                             gesture, self.animation)
+                             gesture, self.animation, self.animated_speech)
                 self._reset_idle_timer()
 
             # ---- Continuous recording loop ----
             while self.session_active:
                 set_listening(self.tablet)
 
-                transcript = self._record_live()
+                transcript, lang = self._record_live()
 
                 if not self.session_active:
                     break
@@ -581,6 +634,14 @@ class WordModule(ALModule):
 
                 # Suspend idle timer so it doesn't timeout mid-response
                 self._cancel_idle_timer()
+
+                # Set TTS language based on STT detection
+                if lang and "fi" in lang.lower():
+                    try: self.tts.setLanguage("Finnish")
+                    except: pass
+                else:
+                    try: self.tts.setLanguage("English")
+                    except: pass
 
                 reply, source = ask_firebase(transcript)
                 if reply:
@@ -596,12 +657,12 @@ class WordModule(ALModule):
                     else:
                         resp_gesture = GESTURE_EXPLAIN  # default gesture for answers
                     say_and_show(self.tts, self.tablet, transcript, reply, source,
-                                 resp_gesture, self.animation)
+                                 resp_gesture, self.animation, self.animated_speech)
                 else:
-                    play_gesture(self.animation, GESTURE_NO)
-                    self.tts.say(
-                        "I am sorry, I could not reach my knowledge base. "
-                        "Please try again or ask a staff member."
+                    g = random.choice(GESTURE_NO) if isinstance(GESTURE_NO, list) else GESTURE_NO
+                    self.animated_speech.say(
+                        "^start({}) I am sorry, I could not reach my knowledge base. "
+                        "Please try again or ask a staff member.".format(g)
                     )
 
                 self._reset_idle_timer()
