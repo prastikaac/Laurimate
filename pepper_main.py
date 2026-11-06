@@ -489,6 +489,42 @@ def transcribe_audio_google(wav_bytes):
         return "", "en"
 
 
+def ensure_complete_sentences(text, max_words=50):
+    """
+    Ensures answers stay strictly under ~50 words and NEVER cut off mid-sentence.
+    Guarantees the text ends with complete sentences.
+    """
+    if not text:
+        return ""
+    clean = re.sub(r'[\*\_#`]', '', text).strip()
+    words = clean.split()
+    if not words:
+        return ""
+
+    # Find all sentence endings (. ! ?)
+    matches = list(re.finditer(r'[\.\!\?](?:\s+|$)', clean))
+    if not matches:
+        return clean + "."
+
+    # If within word limit and ends in punctuation, keep as-is
+    if len(words) <= max_words and clean[-1] in ".!?":
+        return clean
+
+    # Pick the best sentence boundary that respects the word limit
+    best_end = matches[0].end()
+    for m in matches:
+        sub = clean[:m.end()].strip()
+        if len(sub.split()) <= max_words + 6:
+            best_end = m.end()
+        else:
+            break
+
+    result = clean[:best_end].strip()
+    if result and result[-1] not in ".!?":
+        result += "."
+    return result
+
+
 def query_groq_ai(question, context_text="", lang="en"):
     """
     Calls Groq API directly from Pepper via curl (handles modern SSL/TLS).
@@ -504,10 +540,15 @@ def query_groq_ai(question, context_text="", lang="en"):
 
         sys_prompt = (
             u"You are Laurimate, the friendly, intelligent campus assistant robot (SoftBank Pepper) "
-            u"at Laurea University of Applied Sciences in Espoo, Finland. Created by Rakesh & Prasiddha.\n"
-            u"Answer naturally, warmly, and concisely in 2 to 3 spoken sentences.\n"
-            u"NEVER use bullet points, asterisks, markdown formatting, or emojis because you are speaking out loud.\n"
-            u"Always speak in " + lang_name + u".\n\n"
+            u"at Laurea University of Applied Sciences in Espoo, Finland. Created by Rakesh & Prasiddha.\n\n"
+            u"CRITICAL CONVERSATION & LENGTH RULES:\n"
+            u"1. STRICT 50-WORD LIMIT: Keep your total spoken answer strictly under 50 words.\n"
+            u"2. COMPLETE SENTENCES ONLY: You must NEVER cut off mid-sentence or mid-thought. Every sentence must end with a full stop or question mark.\n"
+            u"3. DO NOT CREATE LONG ANSWERS: Keep your response concise (1 to 2 spoken sentences). "
+            u"If a topic requires more information or a longer response, provide the brief core answer first and ask: "
+            u"'Would you like to know more about this?' (or in Finnish: 'Haluatko tietää tästä lisää?').\n"
+            u"4. NEVER use bullet points, asterisks, markdown formatting, numbered lists, or emojis because you are speaking out loud.\n"
+            u"5. Always speak in " + lang_name + u".\n\n"
             u"LIVE ENVIRONMENT CONTEXT:\n"
             u"- Current Local Date & Time: " + live_time + u"\n"
             u"- Current Weather in Leppavaara, Espoo: " + live_weather + u"\n"
@@ -529,8 +570,8 @@ def query_groq_ai(question, context_text="", lang="en"):
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": question_u}
             ],
-            "temperature": 0.4,
-            "max_tokens": 280
+            "temperature": 0.35,
+            "max_tokens": 140
         }
         payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
 
@@ -550,7 +591,7 @@ def query_groq_ai(question, context_text="", lang="en"):
         raw_content = data["choices"][0]["message"]["content"]
         if isinstance(raw_content, unicode):
             raw_content = raw_content.encode("utf-8", "ignore")
-        clean_reply = re.sub(r'[\*\_#`]', '', raw_content).strip()
+        clean_reply = ensure_complete_sentences(raw_content, max_words=50)
         print("[Laurimate] Groq AI ({}) -> '{}'".format(GROQ_MODEL, clean_reply[:80]))
         return clean_reply
     except Exception as e:
@@ -572,8 +613,13 @@ def query_gemini_ai(question, context_text="", lang="en"):
         url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY
         sys_prompt = (
             "You are Laurimate, the campus assistant robot at Laurea University of Applied Sciences in Espoo, Finland. "
-            "Created by Rakesh & Prasiddha. Answer naturally in 2 to 3 concise spoken sentences. "
-            "Never use asterisks, markdown, or emojis. Speak in " + lang_name + ".\n"
+            "Created by Rakesh & Prasiddha.\n"
+            "CRITICAL RULES:\n"
+            "- STRICT 50-WORD LIMIT: Keep your response strictly under 50 words in 1 to 2 spoken sentences.\n"
+            "- COMPLETE SENTENCES ONLY: Never cut off mid-thought; every sentence must finish completely with punctuation.\n"
+            "- DO NOT CREATE LONG ANSWERS: If a topic needs a longer response, answer the key question first and ask: "
+            "'Would you like to know more about this?' (or in Finnish: 'Haluatko tietää tästä lisää?').\n"
+            "- Never use asterisks, markdown, or emojis. Speak in " + lang_name + ".\n"
             "Live Time: " + live_time + " | Live Espoo Weather: " + live_weather + "\n"
         )
         if context_text:
@@ -583,13 +629,13 @@ def query_gemini_ai(question, context_text="", lang="en"):
             "contents": [
                 {"role": "user", "parts": [{"text": sys_prompt + "\nUser question: " + question}]}
             ],
-            "generationConfig": {"temperature": 0.35, "maxOutputTokens": 300}
+            "generationConfig": {"temperature": 0.35, "maxOutputTokens": 140}
         })
         req = urllib2.Request(url, data=payload, headers={"Content-Type": "application/json"})
         resp = urllib2.urlopen(req, timeout=10)
         data = json.loads(resp.read())
         reply = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        clean_reply = re.sub(r'[\*\_#`]', '', reply).strip()
+        clean_reply = ensure_complete_sentences(reply, max_words=50)
         print("[Laurimate] Gemini AI -> '{}'".format(clean_reply[:80]))
         return clean_reply
     except Exception as e:
