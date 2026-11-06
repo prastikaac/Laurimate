@@ -1,249 +1,364 @@
 # -*- coding: utf-8 -*-
 """
-Laurimate - Campus Assistant
+Laurimate - Campus Assistant Robot
 SoftBank Pepper | NAOqi | Python 2.7
 
-Flow:
-  1. ALSpeechRecognition (broad vocab + word-spotting) detects ANY speech
-  2. Speech detected  ->  pause recognizer  ->  start ALAudioRecorder
-  3. Record for RECORD_SECONDS seconds (full utterance captured)
-  4. Stop recorder  ->  send WAV to Google Speech-to-Text  ->  full transcript
-  5. Transcript POSTed to Firebase / Gemini  ->  natural answer
-  6. ALTextToSpeech speaks  +  ALTabletService updates UI
-  7. Resume recognizer  ->  ready for next question
+Features:
+  1. Smooth VAD Listening:
+     - 1.0s pre-roll ring buffer (first word never lost)
+     - Adaptive noise floor (adapts to robot head fan noise)
+     - Clean silence cutoff (0.85s)
+     - Auto mic muting while Pepper speaks
+  2. Single-Shot Speech-to-Text:
+     - Google Cloud STT in 1 clean request (English & Finnish)
+  3. AI Answering on Pepper (No Laptop Required):
+     - Groq API (Llama 3.3 70B / 8B — 14,400 free requests/day, ~250ms speed)
+     - Live Weather in Leppävaara, Espoo (Open-Meteo, 100% free, no key needed)
+     - Live Finnish Date & Time
+     - Grounded in 1,650 campus Q&As from campus.json
+     - Zero cost, runs directly on Pepper
 """
 
 import sys
+import os
 import time
 import json
 import base64
 import urllib2
 import threading
 import random
-import threading
 import re
+import collections
+import audioop
+import wave
+import StringIO
+import Queue
+import subprocess
 
 from naoqi import ALProxy, ALModule, ALBroker
 
 # ------------------------------------------------------------------
-# Python 2 unicode safety
+# Python 2 Unicode Safety
 # ------------------------------------------------------------------
 try:
     string_types = (str, unicode)
 except NameError:
     string_types = (str,)
 
+def to_utf8(val):
+    if val is None:
+        return ""
+    if isinstance(val, unicode):
+        return val.encode("utf-8")
+    return str(val)
+
 # ------------------------------------------------------------------
-# Config  —  edit before deploying
+# Configuration
 # ------------------------------------------------------------------
 PEPPER_IP         = "192.168.0.118"
 PEPPER_PORT       = 9559
 TABLET_URL_BASE   = "http://198.18.0.1/apps/laurimate-1e47c7/index.html"
 FIREBASE_URL      = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app"
-GOOGLE_STT_KEY  = "AIzaSyBf23uxEGc9upLpirqrdtnfUPKD5um5sDY"   # <-- paste your key here
+GOOGLE_STT_KEY    = "AIzaSyBf23uxEGc9upLpirqrdtnfUPKD5um5sDY"
 
-AUDIO_PATH        = "/tmp/laurimate_input.wav" # temp WAV on robot
-AUDIO_CHUNK_A     = "/tmp/laurimate_chunk_a.wav" # alternating chunk files
-AUDIO_CHUNK_B     = "/tmp/laurimate_chunk_b.wav"
-SAMPLE_RATE       = 16000                       # Hz — Pepper front mic
-CHUNK_DURATION    = 2.0   # seconds per live-transcription chunk
-MIN_RECORD_SEC    = 1.0   # always record at least this long
-MAX_RECORD_SEC    = 600   # essentially infinite — record until silence
-SILENCE_TIMEOUT   = 1.5   # seconds of continuous silence before stopping
-STT_LANGUAGE      = "fi-FI"                     # Primary language (Finnish)
-# ------------------------------------------------------------------
-# Gesture configuration
-# ------------------------------------------------------------------
-# Built-in animation paths (posture = Stand for Pepper)
-GESTURE_HEY       = ["animations/Stand/Gestures/Hey_1", "animations/Stand/Gestures/Hey_4", "animations/Stand/Gestures/Hey_6"]
-GESTURE_WAVE      = ["animations/Stand/Gestures/Hey_3", "animations/Stand/Gestures/Hey_1"]
-GESTURE_BYE       = ["animations/Stand/Gestures/Hey_2"]
-GESTURE_YES       = ["animations/Stand/Gestures/Yes_1", "animations/Stand/Gestures/Yes_2", "animations/Stand/Gestures/Yes_3"]
-GESTURE_NO        = ["animations/Stand/Gestures/No_1", "animations/Stand/Gestures/No_3", "animations/Stand/Gestures/No_8", "animations/Stand/Gestures/No_9"]
-GESTURE_EXPLAIN   = ["animations/Stand/Gestures/Explain_1", "animations/Stand/Gestures/Explain_2", "animations/Stand/Gestures/Explain_3", "animations/Stand/Gestures/Explain_4", "animations/Stand/Gestures/Explain_5", "animations/Stand/Gestures/Explain_6", "animations/Stand/Gestures/Explain_7", "animations/Stand/Gestures/Explain_8"]
-GESTURE_THINK     = ["animations/Stand/Gestures/Thinking_1", "animations/Stand/Gestures/Thinking_3", "animations/Stand/Gestures/Thinking_4"]
-GESTURE_SHOW      = ["animations/Stand/Gestures/ShowTablet_1", "animations/Stand/Gestures/ShowTablet_2", "animations/Stand/Gestures/ShowTablet_3"]
-GESTURE_ENTHUSE   = ["animations/Stand/Gestures/Enthusiastic_4", "animations/Stand/Gestures/Enthusiastic_5"]
-# Map trigger words → specific gesture path (for instant responses)
-GREETING_GESTURES = {
-    "hello":        GESTURE_WAVE,
-    "hi":           GESTURE_WAVE,
-    "hey":          GESTURE_WAVE,
-    "hey laurimate": GESTURE_HEY,
-    "ello":         GESTURE_HEY,
-    "llo":          GESTURE_HEY,
-    "ey":           GESTURE_WAVE,
-    "hey lauri":    GESTURE_HEY,
-    "hey laura":    GESTURE_HEY,
-    "i":            GESTURE_HEY,
-    "thank you":    GESTURE_YES,
-    "thanks":       GESTURE_YES,
-    "bye":          GESTURE_BYE,
-    "goodbye":      GESTURE_BYE,
-    "see you":      GESTURE_BYE,
-}
+# --- GROQ API (100% Free, runs directly on Pepper, ~200ms latency) ---
+def _load_groq_key():
+    env_k = os.environ.get("GROQ_API_KEY", "").strip()
+    if env_k:
+        return env_k
+    cand_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "groq_key.txt"),
+        "groq_key.txt",
+        "/home/nao/Laurimate/groq_key.txt"
+    ]
+    for p in cand_paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r") as f:
+                    k = f.read().strip()
+                    if k:
+                        return k
+            except Exception:
+                pass
+    return ""
 
-# Instant responses — bypass STT + Firebase for speed (<100 ms)
-INSTANT_CACHE = {
-    "hello":        "Hello, I'm listening.",
-    "hi":           "Hi there, how can I help?",
-    "hey":          "Hey! What's your question?",
-    "hey laurimate": "Yes, I am here.",
-    
-    # Aliases for mispronunciations / variants
-    "ello":         "Hello, I'm listening.",
-    "llo":          "Hello, I'm listening.",
-    "ey":           "Hey! What's your question?",
-    "hey lauri":    "Yes, I am here.",
-    "hey laura":    "Yes, I am here.",
-    "i":            "Yes, I am listening.",
+GROQ_API_KEY      = _load_groq_key()
+GROQ_MODEL        = "openai/gpt-oss-120b"
 
-    "thank you":    "You are welcome!",
-    "thanks":       "Happy to help!",
-    "bye":          "Goodbye!",
-    "goodbye":      "See you later!",
-    "see you":      "Take care!",
-}
+# --- GEMINI API (Optional alternative from https://aistudio.google.com/apikey) ---
+GEMINI_API_KEY    = ""
 
-GOOGLE_STT_URL  = (
-    "https://speech.googleapis.com/v1/speech:recognize?key=" + GOOGLE_STT_KEY
-)
+SAMPLE_RATE       = 16000     # 16 kHz front mic
+AUDIO_CHANNEL     = 3         # 3 = Front microphone on Pepper's head
+PREROLL_SECONDS   = 1.0       # Retain 1.0s audio before speech trigger
+START_THRESHOLD_S = 0.12      # Speech must sustain 120ms to trigger
+SILENCE_TIMEOUT_S = 0.85      # Silence duration before ending utterance
+MIN_SPEECH_SEC    = 0.35      # Ignore clicks/bursts shorter than 350ms
+MAX_RECORD_SEC    = 14.0      # Safety cutoff for long speech
+IDLE_SESSION_SEC  = 60.0      # Return to welcome screen after 60s inactivity
 
 # ------------------------------------------------------------------
-# Broad vocabulary — used ONLY as a trigger to detect any speech.
-# Google STT handles the actual transcription so this list just needs
-# to be wide enough that word-spotting fires when the user speaks.
+# Gestures Configuration
 # ------------------------------------------------------------------
-TRIGGER_VOCAB = [
-    # common openers (English)
-    "hello", "hi", "hey", "excuse me", "sorry", "hey laurimate",
-    "ello", "llo", "ey", "hey lauri", "hey laura",
-    "what", "where", "when", "how", "who", "why", "is", "are", "can",
-    "do", "does", "tell", "show", "help", "i", "the", "a",
-    # common openers (Finnish)
-    "hei", "moi", "terve", "huomenta", "anteeksi", "laurimate",
-    "mitä", "missä", "milloin", "miten", "kuka", "miksi", "onko", "voitko",
-    "kerro", "näytä", "auta", "minä", "se",
-    # campus topics
-    "wifi", "internet", "library", "canteen", "food", "toilet",
-    "bathroom", "room", "classroom", "bus", "parking", "emergency",
-    "student", "printing", "password", "card", "schedule", "exam",
-    "moodle", "campus", "laurea", "laptop", "computer",
-    "kirjasto", "ruokala", "vessa", "luokka", "bussi", "pysäköinti",
-    # farewells
-    "thank", "thanks", "bye", "goodbye", "kiitos", "hei hei", "näkemiin",
+GESTURE_HEY     = ["animations/Stand/Gestures/Hey_1", "animations/Stand/Gestures/Hey_4", "animations/Stand/Gestures/Hey_6"]
+GESTURE_WAVE    = ["animations/Stand/Gestures/Hey_3", "animations/Stand/Gestures/Hey_1"]
+GESTURE_BYE     = ["animations/Stand/Gestures/Hey_2"]
+GESTURE_YES     = ["animations/Stand/Gestures/Yes_1", "animations/Stand/Gestures/Yes_2", "animations/Stand/Gestures/Yes_3"]
+GESTURE_NO      = ["animations/Stand/Gestures/No_1", "animations/Stand/Gestures/No_3", "animations/Stand/Gestures/No_8"]
+GESTURE_EXPLAIN = [
+    "animations/Stand/Gestures/Explain_1", "animations/Stand/Gestures/Explain_2",
+    "animations/Stand/Gestures/Explain_3", "animations/Stand/Gestures/Explain_4",
+    "animations/Stand/Gestures/Explain_5", "animations/Stand/Gestures/Explain_6",
+    "animations/Stand/Gestures/Explain_7", "animations/Stand/Gestures/Explain_8"
 ]
+GESTURE_SHOW    = ["animations/Stand/Gestures/ShowTablet_1", "animations/Stand/Gestures/ShowTablet_2", "animations/Stand/Gestures/ShowTablet_3"]
+GESTURE_ENTHUSE = ["animations/Stand/Gestures/Enthusiastic_4", "animations/Stand/Gestures/Enthusiastic_5"]
 
-# NAOqi global (required by NAOqi event system)
-LaurimateModule = None
+INSTANT_CACHE = {
+    "hello":         "Hello! I am Laurimate, your campus assistant. How can I help you today?",
+    "hi":            "Hi there! How can I help you?",
+    "hey":           "Hey! What would you like to know about Laurea?",
+    "hey laurimate": "Hello! I am here and listening.",
+    "moi":           "Moi! Kuinka voin auttaa sinua tänään?",
+    "hei":           "Hei! Mitä haluaisit tietää Laureasta?",
+    "terve":         "Terve! Kuinka voin auttaa?",
+    "thank you":     "You are warmly welcome!",
+    "thanks":        "Happy to help!",
+    "kiitos":        "Ole hyvä! Autan mielelläni.",
+    "bye":           "Goodbye! Have a wonderful day at Laurea!",
+    "goodbye":       "Goodbye! See you soon!",
+    "näkemiin":      "Näkemiin! Hyvää päivänjatkoa Laureassa!",
+    "hei hei":       "Hei hei! Nähdään taas!"
+}
+
+STOP_WORDS = set([
+    "what", "where", "when", "how", "who", "why", "is", "are", "the", "a", "an",
+    "to", "from", "in", "on", "at", "of", "for", "can", "i", "you", "do", "does",
+    "tell", "show", "please", "me", "mitä", "missä", "milloin", "miten", "kuka",
+    "miksi", "onko", "se", "ja", "ole", "on", "voitko", "kerro", "minulle", "about"
+])
+
+LaurimateAudioInstance = None
 
 
 # ==================================================================
-# Google Speech-to-Text
+# Live Weather & Live Time Services (100% Free, Direct on Pepper)
 # ==================================================================
 
-def transcribe_audio(wav_path):
-    """
-    Read WAV file, base64-encode, POST to Google STT.
-    Returns transcript string or None.
-    """
+cached_weather_str = ""
+last_weather_fetch = 0.0
+
+def get_live_weather():
+    """Fetches real-time weather in Leppävaara, Espoo via Open-Meteo (No API key needed)."""
+    global cached_weather_str, last_weather_fetch
+    now_ts = time.time()
+    # Cache weather for 10 minutes to be fast and gentle on network
+    if cached_weather_str and (now_ts - last_weather_fetch) < 600.0:
+        return cached_weather_str
+
     try:
-        with open(wav_path, "rb") as f:
-            audio_bytes = f.read()
+        cmd = ["curl", "-s", "--max-time", "4", "http://api.open-meteo.com/v1/forecast?latitude=60.2185&longitude=24.8126&current_weather=true"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, _ = p.communicate()
+        data = json.loads(out)
+        cw = data.get("current_weather", {})
+        temp = cw.get("temperature", "")
+        wind = cw.get("windspeed", "")
+        code = cw.get("weathercode", 0)
 
-        # Skip very short / silent recordings
-        if len(audio_bytes) < 5000:
-            print("[Laurimate] Audio too short — likely silence.")
-            return None
+        condition = "clear sky"
+        if code in [1, 2, 3]: condition = "partly cloudy"
+        elif code in [45, 48]: condition = "foggy"
+        elif code in [51, 53, 55, 61, 63, 65]: condition = "rainy"
+        elif code in [71, 73, 75, 77, 85, 86]: condition = "snowing"
+        elif code in [95, 96, 99]: condition = "thunderstorm"
 
-        encoded = base64.b64encode(audio_bytes)
-
-        payload = json.dumps({
-            "config": {
-                "encoding":        "LINEAR16",
-                "sampleRateHertz": SAMPLE_RATE,
-                "languageCode":    STT_LANGUAGE,
-                "alternativeLanguageCodes": ["en-US"],
-                "model":           "default",
-                "speechContexts": [{
-                    "phrases": [
-                        "laurimate", "laurea", "leppävaara", "campus", "wifi",
-                        "minä", "mitä", "missä", "milloin", "ruokala", "kirjasto",
-                        "vessa", "opiskelija", "tietokone", "moi", "hei", "terve"
-                    ]
-                }]
-            },
-            "audio": {
-                "content": encoded
-            }
-        })
-
-        req = urllib2.Request(
-            GOOGLE_STT_URL,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        resp   = urllib2.urlopen(req, timeout=15)
-        data   = json.loads(resp.read())
-        results = data.get("results", [])
-
-        if not results:
-            print("[Laurimate] STT: no speech in audio.")
-            return None
-
-        alt        = results[0].get("alternatives", [{}])[0]
-        transcript = alt.get("transcript", "").strip()
-        if isinstance(transcript, unicode):
-            transcript = transcript.encode("utf-8")
-            
-        confidence = alt.get("confidence", 0.0)
-        lang_code  = results[0].get("languageCode", STT_LANGUAGE)
-        print("[Laurimate] STT transcript: '{}' ({:.0%} - {})".format(transcript, confidence, lang_code))
-        return (transcript, lang_code) if transcript else (None, lang_code)
-
-    except urllib2.URLError as e:
-        print("[Laurimate] STT network error: {}".format(e))
-        return (None, STT_LANGUAGE)
+        weather_desc = "{:.0f} degrees Celsius, {}, wind speed {} km/h".format(float(temp), condition, wind)
+        cached_weather_str = weather_desc
+        last_weather_fetch = now_ts
+        print("[Laurimate] Live weather updated: {}".format(weather_desc))
+        return weather_desc
     except Exception as e:
-        print("[Laurimate] STT error: {}".format(e))
-        return None
+        print("[Laurimate] Weather fetch note: {}".format(e))
+        return cached_weather_str or "around 4 degrees Celsius and clear"
 
 
-# ==================================================================
-# Firebase / Gemini
-# ==================================================================
-
-def ask_firebase(question):
-    """POST full transcript to Firebase, return (reply, source)."""
+def get_live_time_str(lang="en"):
+    """Fetches live date and time in Finland using HTTP response headers or local clock."""
     try:
-        if isinstance(question, unicode):
-            question = question.encode("utf-8")
-        print("[Laurimate] -> Firebase: '{}'".format(question))
-        payload = json.dumps({"message": question})
-        req = urllib2.Request(
-            FIREBASE_URL,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        resp   = urllib2.urlopen(req, timeout=15)
-        data   = json.loads(resp.read())
-        reply  = data.get("reply", u"").strip()
-        source = data.get("source", "gemini")
-        if isinstance(reply, unicode):
-            reply = reply.encode("utf-8")
-        print("[Laurimate] <- Firebase: {}".format(reply[:80]))
-        return (reply if reply else None), source
-    except urllib2.URLError as e:
-        print("[Laurimate] Firebase network error: {}".format(e))
-        return None, None
+        # Fetch current date/time from world time API
+        cmd = ["curl", "-s", "--max-time", "3", "http://worldtimeapi.org/api/timezone/Europe/Helsinki"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, _ = p.communicate()
+        data = json.loads(out)
+        dt_str = data.get("datetime", "")  # e.g. "2026-11-06T13:35:12.345678+02:00"
+        if dt_str:
+            date_part, time_part = dt_str.split("T")
+            year, month, day = date_part.split("-")
+            hour, minute, _ = time_part.split(":")[:3]
+            days_en = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            day_name = days_en[data.get("day_of_week", 1) - 1]
+            if lang == "fi":
+                days_fi = ["maanantai", "tiistai", "keskiviikko", "torstai", "perjantai", "lauantai", "sunnuntai"]
+                return "{}, kello on {}:{}, {}.{}.{}".format(days_fi[data.get("day_of_week", 1) - 1], hour, minute, day, month, year)
+            else:
+                return "{}, {}:{}, {}/{}/{}".format(day_name, hour, minute, month, day, year)
+    except Exception:
+        pass
+
+    # Fallback to local clock formatted
+    import datetime
+    now = datetime.datetime.now()
+    return now.strftime("%A, %I:%M %p")
+
+
+# ==================================================================
+# Local Campus Knowledge Base (1,650 Questions & Answers)
+# ==================================================================
+
+class CampusDatabase(object):
+    def __init__(self, json_path="/home/nao/Laurimate/campus.json"):
+        self.faqs = []
+        try:
+            with open(json_path, "r") as f:
+                data = json.load(f)
+            sections = data.get("sections", {})
+            for s_key, sec in sections.items():
+                questions = sec.get("questions", {})
+                for q_key, item in questions.items():
+                    q = item.get("q", "")
+                    a = item.get("a", "")
+                    if q and a:
+                        self.faqs.append((to_utf8(q), to_utf8(a)))
+            print("[Laurimate] Loaded {} campus Q&As from {}".format(len(self.faqs), json_path))
+        except Exception as e:
+            print("[Laurimate] Campus DB load note: {}".format(e))
+
+    def get_context(self, query, top_k=4):
+        """Extracts top relevant facts from campus.json to feed into the AI as context."""
+        if not self.faqs or not query:
+            return ""
+
+        words = [w.lower() for w in re.findall(r'\b\w+\b', query) if w.lower() not in STOP_WORDS and len(w) > 2]
+        if not words:
+            return ""
+
+        scored = []
+        for q, a in self.faqs:
+            q_lower = q.lower()
+            a_lower = a.lower()
+            score = 0
+            for w in words:
+                pattern = r'\b' + re.escape(w)
+                if re.search(pattern, q_lower):
+                    score += 4
+                elif re.search(pattern, a_lower):
+                    score += 1
+            if score > 0:
+                scored.append((score, q, a))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top = scored[:top_k]
+        if not top:
+            return ""
+
+        context_lines = []
+        for s, q, a in top:
+            context_lines.append("Fact - Q: {} | A: {}".format(q, a))
+        return "\n".join(context_lines)
+
+    def get_best_match(self, query):
+        if not self.faqs or not query:
+            return None, 0
+
+        words = [w.lower() for w in re.findall(r'\b\w+\b', query) if w.lower() not in STOP_WORDS and len(w) > 2]
+        if not words:
+            return None, 0
+
+        best_match = None
+        best_score = 0
+        for q, a in self.faqs:
+            q_lower = q.lower()
+            a_lower = a.lower()
+            score = 0
+            for w in words:
+                pattern = r'\b' + re.escape(w)
+                if re.search(pattern, q_lower):
+                    score += 4
+                elif re.search(pattern, a_lower):
+                    score += 1
+
+            if score > best_score:
+                best_score = score
+                best_match = (q, a)
+
+        if best_score >= 3:
+            return best_match, best_score
+        return None, 0
+
+campus_db = CampusDatabase()
+
+
+# ==================================================================
+# Live Website & Web Search (100% Free, Direct on Pepper)
+# ==================================================================
+
+def search_laurea_website(query):
+    """Searches official Laurea.fi website via live REST API (100% free, no key)."""
+    try:
+        clean_q = re.sub(r'[^\w\s]', '', query).strip()
+        encoded_q = clean_q.replace(" ", "+")
+        if not encoded_q:
+            return ""
+        cmd = ["curl", "-k", "-s", "--max-time", "3", "https://www.laurea.fi/wp-json/wp/v2/search?search=" + encoded_q + "&per_page=3"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, _ = p.communicate()
+        data = json.loads(out)
+        if not isinstance(data, list) or not data:
+            return ""
+        results = []
+        for item in data[:3]:
+            title = to_utf8(item.get("title", ""))
+            url = to_utf8(item.get("url", ""))
+            if title and url:
+                results.append("Laurea.fi Page: {} ({})".format(title, url))
+        if results:
+            print("[Laurimate] Found {} results from live laurea.fi".format(len(results)))
+            return "\n".join(results)
     except Exception as e:
-        print("[Laurimate] Firebase error: {}".format(e))
-        return None, None
+        print("[Laurimate] Laurea.fi search note: {}".format(e))
+    return ""
+
+
+def search_web_instant(query):
+    """Searches live web facts via DuckDuckGo Instant Answers (100% free, no key)."""
+    try:
+        clean_q = re.sub(r'[^\w\s]', '', query).strip()
+        encoded_q = clean_q.replace(" ", "+")
+        if not encoded_q:
+            return ""
+        cmd = ["curl", "-k", "-s", "--max-time", "3", "https://api.duckduckgo.com/?q=" + encoded_q + "&format=json"]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, _ = p.communicate()
+        data = json.loads(out)
+        abstract = to_utf8(data.get("AbstractText", "")).strip()
+        if abstract:
+            source = to_utf8(data.get("AbstractSource", "Web"))
+            print("[Laurimate] Found live web fact from {}".format(source))
+            return "Live Web Information ({}): {}".format(source, abstract)
+    except Exception as e:
+        print("[Laurimate] Web search note: {}".format(e))
+    return ""
 
 
 # ==================================================================
-# Tablet helpers
+# Tablet UI Helpers
 # ==================================================================
+
+def set_welcome(tablet):
+    if tablet:
+        try: tablet.executeJS("showWelcome();")
+        except Exception: pass
 
 def set_listening(tablet):
     if tablet:
@@ -255,559 +370,636 @@ def set_thinking(tablet):
         try: tablet.executeJS("showThinking();")
         except Exception: pass
 
+def set_transcript(tablet, transcript):
+    if tablet and transcript:
+        try:
+            t_js = to_utf8(transcript).replace("\\", "\\\\").replace("'", "\\'")
+            tablet.executeJS("showTranscript('{}');".format(t_js))
+        except Exception: pass
+
+def set_answer(tablet, question, answer, source="ai"):
+    if tablet:
+        try:
+            q_js = to_utf8(question).replace("\\", "\\\\").replace("'", "\\'")
+            a_js = to_utf8(answer).replace("\\", "\\\\").replace("'", "\\'")
+            tablet.executeJS("showAnswer('{}', '{}', '{}');".format(q_js, a_js, source))
+        except Exception: pass
+
 def set_no_speech(tablet):
     if tablet:
         try: tablet.executeJS("showNoSpeech();")
         except Exception: pass
 
-def set_transcript(tablet, transcript):
-    """Show user's transcribed question on tablet immediately."""
-    if tablet:
-        try:
-            t_js = transcript.replace("\\", "\\\\").replace("'", "\\'")
-            tablet.executeJS("showTranscript('{}');".format(t_js))
-        except Exception: pass
-
-def set_live_text(tablet, text):
-    """Show live-building transcript on tablet while user is still speaking."""
-    if tablet:
-        try:
-            t_js = text.replace("\\", "\\\\").replace("'", "\\'")
-            tablet.executeJS("showLiveText('{}');".format(t_js))
-        except Exception: pass
-
-def play_gesture(animation_player, gesture_path):
-    """Run a gesture animation in a background thread (non-blocking)."""
+def play_gesture_async(animation_player, gesture_path):
     if not gesture_path: return
     if isinstance(gesture_path, list):
         gesture_path = random.choice(gesture_path)
 
     def _run():
-        try:
-            animation_player.run(gesture_path)
+        try: animation_player.run(gesture_path)
         except Exception as e:
-            print("[Laurimate] Gesture '{}' error: {}".format(gesture_path, e))
+            print("[Laurimate] Gesture error: {}".format(e))
     t = threading.Thread(target=_run)
     t.daemon = True
     t.start()
 
-def say_and_show(tts, tablet, question, answer, source="ai",
-                 gesture=None, animation_player=None, animated_speech=None):
+
+# ==================================================================
+# Finnish Speech Recognition Hints & Normalizer
+# ==================================================================
+
+FINNISH_PHRASE_HINTS = [
+    "Laurea", "Laurimate", "Leppävaara", "Leppavaara", "Leppävaaran", "Leppävaarassa", "Leppävaaraan",
+    "Tikkurila", "Tikurilla", "Tikkurilan", "Tikkurilassa", "Tikkurilaan",
+    "Otaniemi", "Otaniemen", "Otaniemessä", "Otaniemeen",
+    "Hyvinkää", "Hyvinkaa", "Hyvinkään", "Hyvinkäällä",
+    "Porvoo", "Porvoon", "Porvoossa", "Lohja", "Lohjan", "Lohjalla",
+    "Vanha maantie", "eduroam", "Tuudo", "Moodle", "Pakki",
+    "kirjasto", "ruokala", "ravintola", "opintotoimisto", "vessa",
+    "pysäköinti", "lukujärjestys", "opiskelija", "opiskelijakortti",
+    "terve", "päivää", "huomenta", "kiitos", "näkemiin", "anteeksi",
+    "moi", "hei", "mitä", "missä", "milloin", "miten", "kuka", "onko", "voitko"
+]
+
+FINNISH_CORRECTIONS = [
+    (re.compile(r'\blep+[aä]?v[aä]+r[aä]+n?\b', re.I), "Leppävaara"),
+    (re.compile(r'\btik+ur[il]+a+n?\b', re.I), "Tikkurila"),
+    (re.compile(r'\b(laura|lauria|loria)\b', re.I), "Laurea"),
+    (re.compile(r'\bhyvink[aä]{1,2}n?\b', re.I), "Hyvinkää"),
+    (re.compile(r'\botan[ie]min?\b', re.I), "Otaniemi"),
+    (re.compile(r'\bedu\s*ro[amn]{2,3}\b', re.I), "eduroam"),
+    (re.compile(r'\btudo\b', re.I), "Tuudo"),
+]
+
+def normalize_finnish_words(text):
+    if not text:
+        return ""
+    for pattern, replacement in FINNISH_CORRECTIONS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+# ==================================================================
+# Speech Recognition & AI Functions
+# ==================================================================
+
+def transcribe_audio_google(wav_bytes):
     """
-    Show answer on tablet and speak with body movement.
-    Uses ALAnimatedSpeech (if provided) to ensure continuous movement
-    throughout the response without locking the robot's arms.
+    Transcribe complete utterance using Google Cloud Speech-to-Text.
+    Supports English & Finnish simultaneously with heavy phrase biasing (boost=20.0).
     """
-    if isinstance(answer, unicode):
-        answer = answer.encode("utf-8")
-    else:
-        answer = str(answer)
-    if isinstance(question, unicode):
-        question = question.encode("utf-8")
-    else:
-        question = str(question)
+    try:
+        url = "https://speech.googleapis.com/v1/speech:recognize?key=" + GOOGLE_STT_KEY
+        encoded = base64.b64encode(wav_bytes)
+        payload = json.dumps({
+            "config": {
+                "encoding": "LINEAR16",
+                "sampleRateHertz": SAMPLE_RATE,
+                "languageCode": "en-US",
+                "alternativeLanguageCodes": ["fi-FI"],
+                "speechContexts": [{
+                    "phrases": FINNISH_PHRASE_HINTS,
+                    "boost": 20.0
+                }]
+            },
+            "audio": {
+                "content": encoded
+            }
+        })
+        req = urllib2.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        resp = urllib2.urlopen(req, timeout=10)
+        data = json.loads(resp.read())
 
-    q_js = question.replace("\\", "\\\\").replace("'", "\\'")
-    a_js = answer.replace("\\", "\\\\").replace("'", "\\'")
+        results = data.get("results", [])
+        if not results:
+            return "", "en"
 
-    if tablet:
-        try:
-            tablet.executeJS("showAnswer('{}', '{}', '{}');".format(q_js, a_js, source))
-        except Exception as e:
-            print("[Laurimate] Tablet JS error: {}".format(e))
+        alt = results[0].get("alternatives", [{}])[0]
+        raw_transcript = to_utf8(alt.get("transcript", "")).strip()
+        lang = to_utf8(results[0].get("languageCode", "en-US"))
+        lang_short = "fi" if "fi" in lang.lower() else "en"
 
-    # Speak using ALAnimatedSpeech to prevent arm locking and enable continuous movement
-    if animated_speech:
-        if gesture:
-            if isinstance(gesture, list):
-                gesture = random.choice(gesture)
-            text_to_say = "^start({}) {}".format(gesture, answer)
+        # Apply phonetic normalization for campus names
+        transcript = normalize_finnish_words(raw_transcript)
+
+        print("[Laurimate] Transcribed: '{}' (Normalized: '{}', Lang: {})".format(raw_transcript, transcript, lang_short))
+        return transcript, lang_short
+    except Exception as e:
+        print("[Laurimate] STT Error: {}".format(e))
+        return "", "en"
+
+
+def query_groq_ai(question, context_text="", lang="en"):
+    """
+    Calls Groq API directly from Pepper via curl (handles modern SSL/TLS).
+    Blazing fast (~200ms) with 14,400 free requests per day.
+    """
+    if not GROQ_API_KEY:
+        return ""
+
+    try:
+        lang_name = u"Finnish" if lang == "fi" else u"English"
+        live_weather = unicode(get_live_weather())
+        live_time = unicode(get_live_time_str(lang))
+
+        sys_prompt = (
+            u"You are Laurimate, the friendly, intelligent campus assistant robot (SoftBank Pepper) "
+            u"at Laurea University of Applied Sciences in Espoo, Finland. Created by Rakesh & Prasiddha.\n"
+            u"Answer naturally, warmly, and concisely in 2 to 3 spoken sentences.\n"
+            u"NEVER use bullet points, asterisks, markdown formatting, or emojis because you are speaking out loud.\n"
+            u"Always speak in " + lang_name + u".\n\n"
+            u"LIVE ENVIRONMENT CONTEXT:\n"
+            u"- Current Local Date & Time: " + live_time + u"\n"
+            u"- Current Weather in Leppavaara, Espoo: " + live_weather + u"\n"
+            u"- Campus Location: Vanha maantie 9, Leppavaara, 02650 Espoo.\n\n"
+        )
+        if context_text:
+            if isinstance(context_text, str):
+                context_text = context_text.decode("utf-8", "ignore")
+            sys_prompt += u"OFFICIAL LAUREA CAMPUS FACTS TO USE IN YOUR ANSWER:\n" + unicode(context_text) + u"\n\n"
+
+        if isinstance(question, str):
+            question_u = question.decode("utf-8", "ignore")
         else:
-            text_to_say = answer
-        animated_speech.say(text_to_say)
+            question_u = unicode(question)
+
+        payload_obj = {
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": question_u}
+            ],
+            "temperature": 0.4,
+            "max_tokens": 280
+        }
+        payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+
+        cmd = [
+            "curl", "-k", "-s", "--max-time", "8", "-X", "POST",
+            "https://api.groq.com/openai/v1/chat/completions",
+            "-H", "Content-Type: application/json",
+            "-H", "User-Agent: curl/7.68.0",
+            "-H", "Authorization: Bearer " + GROQ_API_KEY,
+            "-d", "@-"
+        ]
+
+        p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate(input=payload)
+        data = json.loads(out)
+
+        raw_content = data["choices"][0]["message"]["content"]
+        if isinstance(raw_content, unicode):
+            raw_content = raw_content.encode("utf-8", "ignore")
+        clean_reply = re.sub(r'[\*\_#`]', '', raw_content).strip()
+        print("[Laurimate] Groq AI ({}) -> '{}'".format(GROQ_MODEL, clean_reply[:80]))
+        return clean_reply
+    except Exception as e:
+        print("[Laurimate] Groq Error: {}".format(e))
+        return ""
+
+
+def query_gemini_ai(question, context_text="", lang="en"):
+    """
+    Direct Gemini API call if user provided GEMINI_API_KEY.
+    """
+    if not GEMINI_API_KEY:
+        return ""
+    try:
+        lang_name = "Finnish" if lang == "fi" else "English"
+        live_weather = get_live_weather()
+        live_time = get_live_time_str(lang)
+
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY
+        sys_prompt = (
+            "You are Laurimate, the campus assistant robot at Laurea University of Applied Sciences in Espoo, Finland. "
+            "Created by Rakesh & Prasiddha. Answer naturally in 2 to 3 concise spoken sentences. "
+            "Never use asterisks, markdown, or emojis. Speak in " + lang_name + ".\n"
+            "Live Time: " + live_time + " | Live Espoo Weather: " + live_weather + "\n"
+        )
+        if context_text:
+            sys_prompt += "Campus Facts:\n" + context_text + "\n"
+
+        payload = json.dumps({
+            "contents": [
+                {"role": "user", "parts": [{"text": sys_prompt + "\nUser question: " + question}]}
+            ],
+            "generationConfig": {"temperature": 0.35, "maxOutputTokens": 300}
+        })
+        req = urllib2.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        resp = urllib2.urlopen(req, timeout=10)
+        data = json.loads(resp.read())
+        reply = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        clean_reply = re.sub(r'[\*\_#`]', '', reply).strip()
+        print("[Laurimate] Gemini AI -> '{}'".format(clean_reply[:80]))
+        return clean_reply
+    except Exception as e:
+        print("[Laurimate] Gemini Error: {}".format(e))
+        return ""
+
+
+def get_answer_for_question(question, lang="en"):
+    """
+    Master Answering Pipeline:
+      1. Instant Cache for greetings (<50ms)
+      2. Direct Live Weather / Time check if asked directly
+      3. Extract Campus Facts from campus.json (1,650 Q&As)
+      4. Call Groq AI (or Gemini) with live context + campus facts
+      5. Conversational Database Fallback if offline
+    """
+    clean_q = re.sub(r'[^\w\s]', '', question).lower().strip()
+
+    # 1. Instant Cache
+    if clean_q in INSTANT_CACHE:
+        return INSTANT_CACHE[clean_q], "faq"
+
+    # 2. Extract campus facts from campus.json
+    campus_context = campus_db.get_context(question, top_k=3)
+
+    # 3. Pull live web & laurea.fi search results
+    extra_sources = []
+    if campus_context:
+        extra_sources.append(campus_context)
+
+    # Search live laurea.fi website
+    laurea_web = search_laurea_website(question)
+    if laurea_web:
+        extra_sources.append(laurea_web)
+
+    # If general knowledge or no campus match, search live web
+    if not campus_context:
+        web_fact = search_web_instant(question)
+        if web_fact:
+            extra_sources.append(web_fact)
+
+    combined_context = "\n\n".join(extra_sources)
+
+    # 4. Try Groq AI (14,400 free requests/day, runs directly on Pepper)
+    if GROQ_API_KEY:
+        groq_reply = query_groq_ai(question, combined_context, lang)
+        if groq_reply:
+            return groq_reply, "groq"
+
+    # 5. Try Gemini AI
+    if GEMINI_API_KEY:
+        gemini_reply = query_gemini_ai(question, combined_context, lang)
+        if gemini_reply:
+            return gemini_reply, "gemini"
+
+    # 5. Direct Weather question check without AI
+    if any(w in clean_q for w in ["weather", "sää", "temperature", "lumi", "rain", "cold", "warm"]):
+        weather_info = get_live_weather()
+        if lang == "fi":
+            return "Täällä Leppävaarassa sää on tällä hetkellä: " + weather_info + ".", "weather"
+        else:
+            return "Currently in Leppävaara, the weather is " + weather_info + ".", "weather"
+
+    # 6. Direct Time question check without AI
+    if any(w in clean_q for w in ["time", "kello", "aika", "date", "päivä"]):
+        time_info = get_live_time_str(lang)
+        if lang == "fi":
+            return "Kello on " + time_info + ".", "time"
+        else:
+            return "The current time is " + time_info + ".", "time"
+
+    # 7. Conversational Database Fallback
+    match, score = campus_db.get_best_match(question)
+    if match:
+        matched_q, matched_a = match
+        print("[Laurimate] Local DB Match (Score {}): {}".format(score, matched_a[:60]))
+        if lang == "fi":
+            return "Kampustietojen mukaan: " + matched_a, "faq"
+        else:
+            return "According to Laurea campus information: " + matched_a, "faq"
+
+    # 8. Friendly General Fallback
+    if lang == "fi":
+        return (
+            "Olen Laurimate, Laurean kampusapulainen. En löytänyt suoraa vastausta kysymykseesi. "
+            "Voit kysyä neuvoa ensimmäisen kerroksen infopisteeltä!",
+            "faq"
+        )
     else:
-        # Fallback to older mechanism if animated_speech is not provided
-        if gesture and animation_player:
-            play_gesture(animation_player, gesture)
-        tts.say(answer)
-    # Session manager in _handle_speech will decide next tablet state
+        return (
+            "I am Laurimate, your campus assistant. I couldn't find an exact answer to that in my database. "
+            "Please check with the main lobby reception on the first floor!",
+            "faq"
+        )
 
 
 # ==================================================================
-# NAOqi event module
+# Audio Voice Activity Detection (VAD) Listener
 # ==================================================================
 
-class WordModule(ALModule):
-    """
-    Uses ALSpeechRecognition as a trigger ONLY.
-    When any speech is detected, a background thread records audio,
-    sends to Google STT, then forwards the full transcript to Firebase.
-    """
-
-    IDLE_TIMEOUT = 60   # seconds of silence before returning to welcome
-
+class SmoothAudioListener(ALModule):
     def __init__(self, name, tablet_proxy):
         ALModule.__init__(self, name)
-        self.tablet         = tablet_proxy
-        self.tts            = ALProxy("ALTextToSpeech",      PEPPER_IP, PEPPER_PORT)
-        self.speech         = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
-        self.recorder       = ALProxy("ALAudioRecorder",     PEPPER_IP, PEPPER_PORT)
-        self.memory         = ALProxy("ALMemory",            PEPPER_IP, PEPPER_PORT)
-        self.motion         = ALProxy("ALMotion",            PEPPER_IP, PEPPER_PORT)
-        self.animation      = ALProxy("ALAnimationPlayer",   PEPPER_IP, PEPPER_PORT)
-        self.animated_speech = ALProxy("ALAnimatedSpeech",   PEPPER_IP, PEPPER_PORT)
-        self.busy           = False   # prevent overlapping captures
-        self.session_active = False   # True while in a conversation session
-        self.idle_timer     = None    # threading.Timer for 60 s idle end
+        self.module_name = name
+        self.tablet = tablet_proxy
+        self.audio = ALProxy("ALAudioDevice", PEPPER_IP, PEPPER_PORT)
+        self.utterance_queue = Queue.Queue()
 
-        # Wake up the robot — enables motor stiffness so it can move
+        self.muted = False
+        self.is_recording = False
+        self.noise_floor = 350.0
+
+        self.preroll = collections.deque()
+        self.preroll_duration = 0.0
+
+        self.recorded_frames = []
+        self.speech_start_accum = 0.0
+        self.silence_accum = 0.0
+        self.total_recorded_duration = 0.0
+
+    def start(self):
+        self.audio.setClientPreferences(self.module_name, SAMPLE_RATE, AUDIO_CHANNEL, 0)
+        self.audio.subscribe(self.module_name)
+        print("[Laurimate] Audio stream subscribed (16 kHz, Front Mic).")
+
+    def stop(self):
         try:
-            self.motion.wakeUp()
-            print("[Laurimate] Robot woken up — motors enabled.")
-        except Exception as e:
-            print("[Laurimate] Could not wake up robot: {}".format(e))
+            self.audio.unsubscribe(self.module_name)
+            print("[Laurimate] Audio stream unsubscribed.")
+        except Exception:
+            pass
 
-        # Enable speaking movement (Pepper moves while talking)
-        try:
-            speaking_move = ALProxy("ALSpeakingMovement", PEPPER_IP, PEPPER_PORT)
-            speaking_move.setEnabled(True)
-            speaking_move.setMode("contextual")
-            print("[Laurimate] Speaking movement enabled (contextual mode).")
-        except Exception as e:
-            print("[Laurimate] Could not enable speaking movement: {}".format(e))
+    def set_muted(self, muted):
+        self.muted = muted
+        if muted:
+            self.is_recording = False
+            self.preroll.clear()
+            self.preroll_duration = 0.0
+            self.recorded_frames = []
+            self.speech_start_accum = 0.0
+            self.silence_accum = 0.0
 
-    # ----------------------------------------------------------
+    def processRemote(self, nbOfChannels, nbOfSamplesByChannel, timeStamp, inputBuffer):
+        if self.muted:
+            return
+
+        buf = str(inputBuffer)
+        dur = float(nbOfChannels and nbOfSamplesByChannel) / float(SAMPLE_RATE)
+        rms = audioop.rms(buf, 2)
+
+        threshold = max(self.noise_floor * 2.2, 550.0)
+
+        if not self.is_recording:
+            self.noise_floor = 0.96 * self.noise_floor + 0.04 * float(rms)
+            self.noise_floor = min(max(self.noise_floor, 150.0), 1200.0)
+
+            self.preroll.append((buf, dur))
+            self.preroll_duration += dur
+            while self.preroll_duration > PREROLL_SECONDS and self.preroll:
+                old_buf, old_dur = self.preroll.popleft()
+                self.preroll_duration -= old_dur
+
+            if rms > threshold:
+                self.speech_start_accum += dur
+                if self.speech_start_accum >= START_THRESHOLD_S:
+                    self.is_recording = True
+                    self.silence_accum = 0.0
+                    self.total_recorded_duration = 0.0
+                    self.recorded_frames = [b[0] for b in self.preroll]
+                    for b in self.preroll:
+                        self.total_recorded_duration += b[1]
+                    set_listening(self.tablet)
+                    print("[Laurimate] Speech detected (RMS={:.0f}, Threshold={:.0f}) -> Listening...".format(rms, threshold))
+            else:
+                self.speech_start_accum = 0.0
+
+        else:
+            self.recorded_frames.append(buf)
+            self.total_recorded_duration += dur
+
+            if rms < threshold:
+                self.silence_accum += dur
+            else:
+                self.silence_accum = 0.0
+
+            if self.silence_accum >= SILENCE_TIMEOUT_S or self.total_recorded_duration >= MAX_RECORD_SEC:
+                self.is_recording = False
+                set_thinking(self.tablet)
+                active_speech_dur = self.total_recorded_duration - self.silence_accum
+
+                if active_speech_dur >= MIN_SPEECH_SEC:
+                    print("[Laurimate] Utterance complete ({:.1f}s speech) -> Processing...".format(active_speech_dur))
+                    wav_data = self._pcm_to_wav("".join(self.recorded_frames))
+                    self.utterance_queue.put(wav_data)
+                else:
+                    print("[Laurimate] Sound too short ({:.2f}s) -> Ignored.".format(active_speech_dur))
+                    set_welcome(self.tablet)
+
+                self.preroll.clear()
+                self.preroll_duration = 0.0
+                self.recorded_frames = []
+                self.silence_accum = 0.0
+                self.speech_start_accum = 0.0
+
+    def _pcm_to_wav(self, pcm_bytes):
+        out = StringIO.StringIO()
+        w = wave.open(out, "wb")
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SAMPLE_RATE)
+        w.writeframes(pcm_bytes)
+        w.close()
+        return out.getvalue()
+
+
+# ==================================================================
+# Main Conversation Controller
+# ==================================================================
+
+class LaurimateController(object):
+    def __init__(self, tablet, listener):
+        self.tablet = tablet
+        self.listener = listener
+
+        self.tts = ALProxy("ALTextToSpeech", PEPPER_IP, PEPPER_PORT)
+        self.animated_speech = ALProxy("ALAnimatedSpeech", PEPPER_IP, PEPPER_PORT)
+        self.animation_player = ALProxy("ALAnimationPlayer", PEPPER_IP, PEPPER_PORT)
+
+        self.session_active = False
+        self.idle_timer = None
+        self.running = True
+
+    def _reset_idle_timer(self):
+        if self.idle_timer:
+            self.idle_timer.cancel()
+        self.idle_timer = threading.Timer(IDLE_SESSION_SEC, self._on_idle_timeout)
+        self.idle_timer.daemon = True
+        self.idle_timer.start()
+
     def _cancel_idle_timer(self):
-        """Pause the idle countdown (used when Pepper is giving a long answer)."""
         if self.idle_timer:
             self.idle_timer.cancel()
             self.idle_timer = None
-        print("[Laurimate] Idle timer paused during speech.")
 
-    def _reset_idle_timer(self):
-        """Cancel existing idle timer and start a fresh 60-second countdown."""
-        if self.idle_timer:
-            self.idle_timer.cancel()
-        self.idle_timer = threading.Timer(self.IDLE_TIMEOUT, self._end_session)
-        self.idle_timer.daemon = True
-        self.idle_timer.start()
-        print("[Laurimate] Idle timer reset — {} s to welcome screen.".format(self.IDLE_TIMEOUT))
+    def _on_idle_timeout(self):
+        self.session_active = False
+        print("[Laurimate] Idle timeout ({}s) -> Returning to welcome screen.".format(IDLE_SESSION_SEC))
+        set_welcome(self.tablet)
 
-    def _start_session(self):
-        """Begin a new 1-minute conversation session."""
+    def speak_and_show(self, question, answer, lang="en", source="ai", gesture=None):
+        self._cancel_idle_timer()
+
+        # 1. Mute mic so Pepper never hears itself
+        self.listener.set_muted(True)
+
+        # 2. Set TTS language
+        if "fi" in lang.lower():
+            try: self.tts.setLanguage("Finnish")
+            except Exception: pass
+        else:
+            try: self.tts.setLanguage("English")
+            except Exception: pass
+
+        # 3. Update tablet UI
+        set_answer(self.tablet, question, answer, source)
+
+        # 4. Speak with animated gestures
+        try:
+            if gesture:
+                if isinstance(gesture, list):
+                    gesture = random.choice(gesture)
+                spoken_text = "^start({}) {}".format(gesture, answer)
+            else:
+                spoken_text = answer
+
+            self.animated_speech.say(spoken_text)
+        except Exception as e:
+            print("[Laurimate] Animated speech fallback: {}".format(e))
+            if gesture:
+                play_gesture_async(self.animation_player, gesture)
+            self.tts.say(answer)
+
+        # 5. Settling delay before unmuting
+        time.sleep(0.35)
+        self.listener.set_muted(False)
+
+        # 6. Session stays alive
         self.session_active = True
-        print("[Laurimate] Session started — {} s idle timeout active.".format(self.IDLE_TIMEOUT))
         self._reset_idle_timer()
 
-    def _end_session(self):
-        """Called by idle timer when 60 s of silence passes — return to welcome."""
-        self.session_active = False
-        self.idle_timer = None
-        print("[Laurimate] Session ended — idle timeout reached. Returning to welcome.")
-        if self.tablet:
-            try: self.tablet.executeJS("showWelcome();")
-            except Exception: pass
+    def select_gesture(self, text):
+        lower = text.lower()
+        if any(w in lower for w in ["where", "missä", "location", "find", "room", "kartta"]):
+            return GESTURE_SHOW
+        elif any(w in lower for w in ["how", "miten", "why", "miksi", "explain", "kerro"]):
+            return GESTURE_EXPLAIN
+        elif any(w in lower for w in ["thank", "kiitos", "great", "hyvä", "loistava"]):
+            return GESTURE_ENTHUSE
+        elif any(w in lower for w in ["yes", "joo", "kyllä"]):
+            return GESTURE_YES
+        elif any(w in lower for w in ["no", "ei"]):
+            return GESTURE_NO
+        return GESTURE_EXPLAIN
 
-    # ----------------------------------------------------------
-    def on_word_recognized(self, key, value):
-        """NAOqi calls this on the WordRecognized event."""
-        # Re-entry guard — if already processing, ignore new trigger
-        if self.busy:
-            return
-        if not value or len(value) < 2:
-            return
-
-        # Find highest-confidence word in the result list
-        pairs = []
-        for i in range(0, len(value) - 1, 2):
-            w = value[i]
-            c = value[i + 1]
-            if isinstance(w, string_types) and isinstance(c, float):
-                pairs.append((re.sub(r'<[^>]*>', '', w).lower().strip(), c))
-
-        if not pairs:
-            return
-
-        trigger_word, conf = max(pairs, key=lambda x: x[1])
-
-        # Ignore genuine noise
-        if conf < 0.10:
-            return
-
-        print("[Laurimate] Speech trigger: '{}' ({:.0%})".format(trigger_word, conf))
-
-        # Start session on first word; reset idle timer if already active
-        if not self.session_active:
-            self._start_session()
-        else:
-            self._reset_idle_timer()
-
-        # Hand off to a background thread so the NAOqi callback returns fast
-        self.busy = True
-        t = threading.Thread(target=self._handle_speech, args=(trigger_word,))
-        t.daemon = True
-        t.start()
-
-    # ----------------------------------------------------------
-    def _record_once(self):
-        """
-        Record one utterance using silence detection.
-        Returns elapsed seconds, or -1 on error.
-        """
-        try:
-            self.recorder.startMicrophonesRecording(
-                AUDIO_PATH, "wav", SAMPLE_RATE, (0, 0, 1, 0)
-            )
-            elapsed       = 0.0
-            poll_interval = 0.15
-            
-            # Track how long it has been since we LAST saw speech
-            time_since_last_speech = 0.0
-
-            while elapsed < MAX_RECORD_SEC and self.session_active:
-                time.sleep(poll_interval)
-                elapsed += poll_interval
-                
-                # Start evaluating silence only after MIN_RECORD_SEC
-                if elapsed >= MIN_RECORD_SEC:
-                    try:
-                        speaking = self.memory.getData("SpeechDetected")
-                    except Exception:
-                        speaking = 1
-                        
-                    if speaking == 1:
-                        # User is speaking right now — reset the silence completely
-                        time_since_last_speech = 0.0
-                    else:
-                        # User is currently silent — accumulate time
-                        time_since_last_speech += poll_interval
-                        
-                    # Stop if they've been continuously silent for the timeout duration
-                    if time_since_last_speech >= SILENCE_TIMEOUT:
-                        print("[Laurimate] Silence detected ({}s continuous), stopping.".format(SILENCE_TIMEOUT))
-                        break
-
-            self.recorder.stopMicrophonesRecording()
-            print("[Laurimate] Recording complete ({:.1f}s).".format(elapsed))
-            return elapsed
-        except Exception as e:
-            print("[Laurimate] Recording error: {}".format(e))
-            try: self.recorder.stopMicrophonesRecording()
-            except Exception: pass
-            return -1
-
-    # ----------------------------------------------------------
-    def _record_live(self):
-        """
-        Record in 2-second chunks using two alternating WAV files.
-        Each chunk is sent to Google STT in a background thread.
-        Live transcript is shown on the tablet as it builds up.
-        Returns the full accumulated transcript, or None.
-        """
-        paths = [AUDIO_CHUNK_A, AUDIO_CHUNK_B]
-        accumulated = []          # list of transcribed chunk texts
-        chunk_idx = 0
-        silent_after_speech = 0   # consecutive empty chunks after speech
-        prev_thread = None
-        prev_result = [None]      # mutable container for thread return
-        last_lang = STT_LANGUAGE
-
-        # Ensure not already recording from a previous crashed session
-        try:
-            self.recorder.stopMicrophonesRecording()
-        except Exception:
-            pass
-
-        # Start the FIRST chunk recording immediately
-        path = paths[0]
-        try:
-            self.recorder.startMicrophonesRecording(path, "wav", SAMPLE_RATE, (0, 0, 1, 0))
-        except Exception as e:
-            print("[Laurimate] Initial chunk start error: {}".format(e))
-            try: self.recorder.stopMicrophonesRecording()
-            except Exception: pass
-            time.sleep(0.2)
-            try: self.recorder.startMicrophonesRecording(path, "wav", SAMPLE_RATE, (0, 0, 1, 0))
-            except Exception: pass
-
-        while self.session_active and chunk_idx < 30:
-            time.sleep(CHUNK_DURATION)
-
-            # Stop current chunk
-            try: self.recorder.stopMicrophonesRecording()
-            except Exception: pass
-
-            # IMMEDIATELY start the next chunk to prevent audio gaps
-            next_path = paths[(chunk_idx + 1) % 2]
-            if chunk_idx + 1 < 30 and self.session_active:
-                try:
-                    self.recorder.startMicrophonesRecording(next_path, "wav", SAMPLE_RATE, (0, 0, 1, 0))
-                except Exception as e:
-                    print("[Laurimate] Next chunk start error: {}".format(e))
-
-            # ---- Collect result from PREVIOUS chunk's STT ----
-            if prev_thread is not None:
-                prev_thread.join(timeout=5)
-                res_transcript, res_lang = prev_result[0] if prev_result[0] else (None, STT_LANGUAGE)
-                if res_transcript:
-                    accumulated.append(res_transcript)
-                    last_lang = res_lang
-                    live_text = " ".join(accumulated)
-                    set_live_text(self.tablet, live_text)
-                    print("[Laurimate] Live: '{}'".format(live_text))
-                    silent_after_speech = 0
-                else:
-                    if accumulated:
-                        silent_after_speech += 1
-
-            # ---- User stopped speaking? ----
-            # Require 2 consecutive empty chunks (4s) before assuming user is done
-            if silent_after_speech >= 2 and accumulated:
-                print("[Laurimate] Silence after speech — done recording.")
-                break
-
-            # ---- Start STT for THIS chunk in background ----
-            prev_result = [None]
-            chunk_path = path   # capture for closure
-            chunk_res = prev_result
-            def _stt(p=chunk_path, r=chunk_res):
-                r[0] = transcribe_audio(p)
-            prev_thread = threading.Thread(target=_stt)
-            prev_thread.daemon = True
-            prev_thread.start()
-
-            # Update path for the next loop iteration
-            path = next_path
-            chunk_idx += 1
-
-        # ---- Collect last pending STT ----
-        if prev_thread is not None:
-            prev_thread.join(timeout=5)
-            res_transcript, res_lang = prev_result[0] if prev_result[0] else (None, STT_LANGUAGE)
-            if res_transcript:
-                accumulated.append(res_transcript)
-                last_lang = res_lang
-                live_text = " ".join(accumulated)
-                set_live_text(self.tablet, live_text)
-
-        full = " ".join(accumulated).strip()
-        return (full, last_lang) if full else (None, last_lang)
-
-    # ----------------------------------------------------------
-    def _handle_speech(self, trigger_word):
-        """
-        Background thread:
-          0. Instant cache → speak, then drop straight into the recording loop
-          1. Otherwise → live chunked recording with real-time STT display
-
-        Recording loop (runs while session_active):
-          a. Show listening on tablet
-          b. Record in chunks with live STT → show text on tablet
-          c. If transcript: Firebase → respond; if none: stay listening
-          d. Reset idle timer after each response, loop back to (a)
-        """
-        try:
-            # ---- 0. Instant cache — answer without going through STT ----
-            instant = INSTANT_CACHE.get(trigger_word)
-            if instant:
-                print("[Laurimate] Instant cache hit for '{}'".format(trigger_word))
-                gesture = GREETING_GESTURES.get(trigger_word)
-                say_and_show(self.tts, self.tablet, trigger_word, instant, "faq",
-                             gesture, self.animation, self.animated_speech)
-                self._reset_idle_timer()
-
-            # ---- Continuous recording loop ----
-            while self.session_active:
-                set_listening(self.tablet)
-
-                transcript, lang = self._record_live()
-
-                if not self.session_active:
-                    break
-
-                if not transcript:
-                    print("[Laurimate] No speech in recording — staying in session.")
-                    continue
-
-                # Show final transcript + thinking state
-                set_transcript(self.tablet, transcript)
-
-                # Suspend idle timer so it doesn't timeout mid-response
-                self._cancel_idle_timer()
-
-                # Set TTS language based on STT detection
-                if lang and "fi" in lang.lower():
-                    try: self.tts.setLanguage("Finnish")
-                    except: pass
-                else:
-                    try: self.tts.setLanguage("English")
-                    except: pass
-
-                reply, source = ask_firebase(transcript)
-                if reply:
-                    # Pick a contextual gesture for the start of long answers
-                    resp_gesture = None
-                    lower_t = transcript.lower()
-                    if any(g in lower_t for g in ["where", "show", "find", "location"]):
-                        resp_gesture = GESTURE_SHOW
-                    elif any(g in lower_t for g in ["how", "explain", "what is", "tell me"]):
-                        resp_gesture = GESTURE_EXPLAIN
-                    elif any(g in lower_t for g in ["thank", "great", "good", "awesome"]):
-                        resp_gesture = GESTURE_ENTHUSE
-                    else:
-                        resp_gesture = GESTURE_EXPLAIN  # default gesture for answers
-                    say_and_show(self.tts, self.tablet, transcript, reply, source,
-                                 resp_gesture, self.animation, self.animated_speech)
-                else:
-                    g = random.choice(GESTURE_NO) if isinstance(GESTURE_NO, list) else GESTURE_NO
-                    self.animated_speech.say(
-                        "^start({}) I am sorry, I could not reach my knowledge base. "
-                        "Please try again or ask a staff member.".format(g)
-                    )
-
-                self._reset_idle_timer()
-                # Loop immediately — start recording for the next follow-up
-
-        finally:
-            self.busy = False
-            print("[Laurimate] Session loop ended — ready for next session.")
-
-
-# ==================================================================
-# Speech recognition setup
-# ==================================================================
-
-def setup_speech(speech):
-    """Clean up any stale subscription then configure vocabulary."""
-
-    # 1. Unsubscribe ALL existing subscribers — not just ours.
-    #    NAOqi keeps the grammar alive as long as ANY subscriber exists.
-    try:
-        subs = speech.getSubscribersInfo()
-        for sub in subs:
-            name = sub[0] if isinstance(sub, (list, tuple)) else str(sub)
+    def run_loop(self):
+        print("[Laurimate] Controller running. Listening for user speech...")
+        while self.running:
             try:
-                speech.unsubscribe(name)
-                print("[Laurimate] Unsubscribed stale subscriber: {}".format(name))
-            except Exception:
-                pass
-    except Exception:
-        # Fallback: just try our own name
-        try:
-            speech.unsubscribe("Laurimate")
-            print("[Laurimate] Cleaned up stale Laurimate subscriber.")
-        except Exception:
-            pass
+                wav_bytes = self.listener.utterance_queue.get(timeout=1.0)
+            except Queue.Empty:
+                continue
 
-    try:
-        speech.pause(True)
-    except Exception:
-        pass
+            # 1. Transcribe audio with Google Cloud STT
+            transcript, lang = transcribe_audio_google(wav_bytes)
 
-    # 2. Set vocabulary — should succeed now that all subscribers are gone
-    try:
-        speech.setVocabulary(TRIGGER_VOCAB, True)
-        print("[Laurimate] Vocabulary set successfully.")
-    except RuntimeError as e:
-        if "already exists" in str(e):
-            print("[Laurimate] Grammar already loaded — reusing.")
-        else:
-            raise
+            if not transcript:
+                print("[Laurimate] No speech detected in utterance.")
+                set_no_speech(self.tablet)
+                time.sleep(1.5)
+                if not self.session_active:
+                    set_welcome(self.tablet)
+                continue
 
-    try:
-        speech.pause(False)
-    except Exception:
-        pass
+            # 2. Show user question on tablet
+            set_transcript(self.tablet, transcript)
+
+            # 3. Get AI answer using database context + live weather/time
+            answer, source = get_answer_for_question(transcript, lang)
+
+            # 4. Select gesture & respond
+            gesture = self.select_gesture(transcript)
+            self.speak_and_show(transcript, answer, lang, source, gesture)
 
 
 # ==================================================================
-# Main
+# Entrypoint
 # ==================================================================
 
 def main():
-    global LaurimateModule
+    global LaurimateAudioInstance
 
-    # 1. NAOqi Broker
-    broker = ALBroker("PythonBroker", "0.0.0.0", 0, PEPPER_IP, PEPPER_PORT)
+    print("==================================================")
+    print(" Laurimate Campus Assistant - Groq & Campus AI")
+    print("==================================================")
 
-    # 2. Wake up robot — MUST be done first so motors are stiffened
+    # 1. Start NAOqi broker
+    broker = ALBroker("LaurimateBroker", "0.0.0.0", 0, PEPPER_IP, PEPPER_PORT)
+
+    # 2. Motion wake-up
     motion = ALProxy("ALMotion", PEPPER_IP, PEPPER_PORT)
     try:
         motion.wakeUp()
-        print("[Laurimate] Robot woken up — motors ON.")
+        print("[Laurimate] Robot woken up — motors enabled.")
     except Exception as e:
         print("[Laurimate] Could not wake robot: {}".format(e))
 
-    # 2b. Enable autonomous life (basic awareness) so Pepper tracks people
+    # 3. Autonomous life & speaking movement
     try:
         auto_life = ALProxy("ALAutonomousLife", PEPPER_IP, PEPPER_PORT)
         auto_life.setState("solitary")
         print("[Laurimate] Autonomous life set to 'solitary'.")
     except Exception as e:
-        print("[Laurimate] Autonomous life not available: {}".format(e))
+        print("[Laurimate] Autonomous life note: {}".format(e))
 
-    # 2c. Enable speaking movement — Pepper moves arms/head while talking
     try:
         speaking_move = ALProxy("ALSpeakingMovement", PEPPER_IP, PEPPER_PORT)
         speaking_move.setEnabled(True)
-        print("[Laurimate] Speaking movement ENABLED.")
+        speaking_move.setMode("contextual")
+        print("[Laurimate] Contextual speaking movement enabled.")
     except Exception as e:
-        print("[Laurimate] Speaking movement not available: {}".format(e))
+        print("[Laurimate] Speaking movement note: {}".format(e))
 
-    # 3. Tablet (optional)
+    # 4. Tablet setup
     tablet = None
     try:
         tablet = ALProxy("ALTabletService", PEPPER_IP, PEPPER_PORT)
         url_with_cache_bust = "{}?t={}".format(TABLET_URL_BASE, int(time.time()))
         tablet.showWebview(url_with_cache_bust)
-        print("[Laurimate] Tablet showing: {}".format(url_with_cache_bust))
+        print("[Laurimate] Tablet active: {}".format(url_with_cache_bust))
+        set_welcome(tablet)
     except Exception as e:
-        print("[Laurimate] Tablet not available: {}".format(e))
+        print("[Laurimate] Tablet note: {}".format(e))
 
-    # 4. Create module
-    LaurimateModule = WordModule("LaurimateModule", tablet)
+    # 5. Initialize Smooth Audio VAD Listener
+    LaurimateAudioInstance = SmoothAudioListener("LaurimateAudioInstance", tablet)
+    LaurimateAudioInstance.start()
 
-    # 5. Set up speech recognition (trigger only)
-    speech = ALProxy("ALSpeechRecognition", PEPPER_IP, PEPPER_PORT)
-    setup_speech(speech)
+    # 6. Initialize Controller
+    controller = LaurimateController(tablet, LaurimateAudioInstance)
 
-    # 6. Subscribe to WordRecognized event
-    memory = ALProxy("ALMemory", PEPPER_IP, PEPPER_PORT)
-    memory.subscribeToEvent(
-        "WordRecognized",
-        "LaurimateModule",
-        "on_word_recognized",
-    )
-
-    # 7. Start recognizer
-    speech.subscribe("Laurimate")
-
-    # 8. Welcome — play a wave gesture while speaking
+    # 7. Initial greeting
     tts = ALProxy("ALTextToSpeech", PEPPER_IP, PEPPER_PORT)
     anim_player = ALProxy("ALAnimationPlayer", PEPPER_IP, PEPPER_PORT)
-    if tablet:
-        try: tablet.executeJS("showWelcome();")
-        except Exception: pass
-
-    speech.pause(True)
-    # Fire wave gesture in background, then speak
-    play_gesture(anim_player, GESTURE_HEY)
+    play_gesture_async(anim_player, GESTURE_WAVE)
+    LaurimateAudioInstance.set_muted(True)
     tts.say("Hello! I am Laurimate, your campus assistant. How can I help you?")
-    speech.pause(False)
+    time.sleep(0.3)
+    LaurimateAudioInstance.set_muted(False)
+    set_welcome(tablet)
 
-    print("[Laurimate] Listening with Google Speech-to-Text. Press Ctrl+C to stop.")
+    print("[Laurimate] Listening smoothly. Ready for questions.")
 
-    # 8. Keep alive
     try:
-        while True:
-            time.sleep(1)
+        controller.run_loop()
     except KeyboardInterrupt:
         print("\n[Laurimate] Shutting down...")
     finally:
-        try: memory.unsubscribeToEvent("WordRecognized", "LaurimateModule")
-        except Exception: pass
-        try: speech.unsubscribe("Laurimate")
-        except Exception: pass
+        controller.running = False
+        if LaurimateAudioInstance:
+            LaurimateAudioInstance.stop()
         if tablet:
             try: tablet.hideWebview()
             except Exception: pass

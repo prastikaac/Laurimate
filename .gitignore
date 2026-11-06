@@ -64,6 +64,14 @@ node_modules/
 
 # dotenv environment variables file
 .env
+groq_key.txt
+*.key
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.bak_
 
 # dataconnect generated files
 .dataconnect
