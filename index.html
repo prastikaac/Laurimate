@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laurimate — Pepper Robot Campus Assistant | Laurea UAS</title>
+  <meta name="description" content="Laurimate is a voice-first AI campus assistant running on the SoftBank Pepper robot at Laurea University of Applied Sciences. Learn how it works, who built it and how to use it." />
+  <link rel="icon" href="laurea.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ============ NAVBAR ============ -->
+  <header class="nav" id="nav">
+    <div class="container nav-inner">
+      <a href="#top" class="brand">
+        <span class="brand-dot"></span>
+        Lauri<span class="accent">mate</span>
+      </a>
+      <nav class="nav-links" id="navLinks">
+        <a href="#about">About</a>
+        <a href="#how">How it works</a>
+        <a href="#use">How to use</a>
+        <a href="#topics">What to ask</a>
+        <a href="#operator">Operator guide</a>
+        <a href="#team">Team</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <button class="nav-toggle" id="navToggle" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="top">
+    <div class="grid-bg"></div>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <div class="container hero-inner">
+      <div class="hero-text reveal">
+        <span class="pill"><span class="live-dot"></span> Live at Laurea Leppävaara campus</span>
+        <h1>Meet <span class="gradient-text">Laurimate</span><br/>your robot campus assistant.</h1>
+        <p class="lead">
+          Laurimate is a voice-first, AI-powered assistant running on the <strong>SoftBank Pepper</strong>
+          humanoid robot. Just say <em>“Hello”</em> and ask anything — from Wi-Fi and library
+          questions to exams, thesis rules or general knowledge — in <strong>English or Finnish</strong>.
+        </p>
+        <div class="hero-cta">
+          <a href="#use" class="btn btn-primary">How to talk to Laurimate</a>
+          <a href="#how" class="btn btn-ghost">See how it works →</a>
+        </div>
+        <div class="hero-stats">
+          <div><strong data-count="1800">0</strong><span>+ campus Q&amp;As</span></div>
+          <div><strong>2</strong><span>languages (EN / FI)</span></div>
+          <div><strong>&lt;100<small>ms</small></strong><span>instant greetings</span></div>
+        </div>
+      </div>
+
+      <!-- Pepper illustration -->
+      <div class="hero-robot reveal">
+        <div class="speech-bubble" id="heroBubble">Hello! I am Laurimate 👋</div>
+        <svg class="pepper" viewBox="0 0 260 420" xmlns="http://www.w3.org/2000/svg" aria-label="Pepper robot illustration">
+          <defs>
+            <linearGradient id="body" x1="0" x2="1">
+              <stop offset="0" stop-color="#ffffff"/>
+              <stop offset="1" stop-color="#cfd8e6"/>
+            </linearGradient>
+            <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#0b1426"/>
+              <stop offset="1" stop-color="#13223d"/>
+            </linearGradient>
+          </defs>
+          <!-- base -->
+          <path d="M60 400 Q130 330 200 400 Z" fill="url(#body)"/>
+          <path d="M80 300 Q130 270 180 300 L205 400 L55 400 Z" fill="url(#body)"/>
+          <!-- torso -->
+          <rect x="72" y="165" width="116" height="145" rx="45" fill="url(#body)"/>
+          <!-- tablet -->
+          <rect x="92" y="195" width="76" height="56" rx="8" fill="url(#screen)" stroke="#38bdf8" stroke-width="1.5"/>
+          <circle class="tablet-pulse" cx="130" cy="223" r="12" fill="#00AEEF" opacity=".85"/>
+          <circle cx="130" cy="223" r="20" fill="none" stroke="#00AEEF" stroke-width="1" opacity=".4"/>
+          <!-- arms -->
+          <g class="arm-left">
+            <path d="M74 185 Q45 230 50 285" stroke="url(#body)" stroke-width="20" stroke-linecap="round" fill="none"/>
+            <circle cx="50" cy="290" r="11" fill="#e8edf5"/>
+          </g>
+          <g class="arm-right">
+            <path d="M186 185 Q220 150 228 105" stroke="url(#body)" stroke-width="20" stroke-linecap="round" fill="none"/>
+            <circle cx="229" cy="98" r="11" fill="#e8edf5"/>
+          </g>
+          <!-- neck -->
+          <rect x="118" y="148" width="24" height="22" rx="8" fill="#b9c4d6"/>
+          <!-- head -->
+          <ellipse cx="130" cy="95" rx="62" ry="60" fill="url(#body)"/>
+          <ellipse cx="72" cy="98" rx="9" ry="18" fill="#b9c4d6"/>
+          <ellipse cx="188" cy="98" rx="9" ry="18" fill="#b9c4d6"/>
+          <!-- eyes -->
+          <g class="eyes">
+            <circle cx="108" cy="92" r="13" fill="#0b1426"/>
+            <circle cx="152" cy="92" r="13" fill="#0b1426"/>
+            <circle cx="108" cy="92" r="7" fill="#00AEEF"/>
+            <circle cx="152" cy="92" r="7" fill="#00AEEF"/>
+            <circle cx="111" cy="89" r="2.5" fill="#fff"/>
+            <circle cx="155" cy="89" r="2.5" fill="#fff"/>
+          </g>
+          <path d="M118 122 Q130 130 142 122" stroke="#7b8aa3" stroke-width="3" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div class="robot-shadow"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="section" id="about">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">About the project</span>
+        <h2>What is Laurimate?</h2>
+        <p>
+          Laurimate (<em>Laurea + mate</em>) is a social robot assistant designed to help students,
+          staff and visitors at Laurea University of Applied Sciences. Instead of searching websites
+          or queuing at a help desk, people simply walk up to the robot and <strong>talk</strong>.
+        </p>
+      </div>
+
+      <div class="cards cards-3">
+        <article class="card reveal">
+          <div class="card-icon">🎙️</div>
+          <h3>Voice-first</h3>
+          <p>No keyboard, no app. Pepper listens, thinks and answers out loud while the chest tablet shows
+            what it heard and what it replied.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">🧠</div>
+          <h3>Campus knowledge + AI</h3>
+          <p>A curated database of 1,800+ Laurea questions and answers is combined with a conversational AI
+            so it can also handle general questions.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">🇫🇮</div>
+          <h3>Bilingual</h3>
+          <p>Speak in English or Finnish. Laurimate detects the language you use and replies in the same
+            language — with the matching voice.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">🤖</div>
+          <h3>Expressive gestures</h3>
+          <p>Pepper waves hello, nods, points at its tablet when you ask “where”, and uses explaining
+            gestures while it talks.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">📱</div>
+          <h3>Animated tablet UI</h3>
+          <p>A modern, animated interface on Pepper’s built-in tablet shows listening, thinking and answer
+            states with live captions.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-icon">⏱️</div>
+          <h3>Natural sessions</h3>
+          <p>After the first greeting you can keep asking follow-ups. After 60 seconds of silence it
+            politely returns to the welcome screen.</p>
+        </article>
+      </div>
+
+      <div class="spec-strip reveal">
+        <div><span>Robot</span><strong>SoftBank Pepper</strong></div>
+        <div><span>Height</span><strong>~120 cm</strong></div>
+        <div><span>Location</span><strong>Leppävaara, Espoo</strong></div>
+        <div><span>Languages</span><strong>English · Suomi</strong></div>
+        <div><span>Built for</span><strong>Laurea UAS</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="section section-alt" id="how">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Under the hood</span>
+        <h2>How does it work?</h2>
+        <p>From your voice to Pepper’s answer in a few seconds — here is everything that happens in between.</p>
+      </div>
+
+      <!-- architecture -->
+      <div class="arch reveal">
+        <div class="arch-node">
+          <div class="arch-icon">🧑‍🎓</div>
+          <h4>You</h4>
+          <p>Speak a question</p>
+        </div>
+        <div class="arch-arrow"><span>voice</span></div>
+        <div class="arch-node highlight">
+          <div class="arch-icon">🤖</div>
+          <h4>Pepper Robot</h4>
+          <p>Python 2.7 · NAOqi<br/><code>pepper_main.py</code></p>
+        </div>
+        <div class="arch-arrow"><span>audio → text</span></div>
+        <div class="arch-node">
+          <div class="arch-icon">🗣️</div>
+          <h4>Speech-to-Text</h4>
+          <p>Google STT<br/>fi-FI + en-US</p>
+        </div>
+        <div class="arch-arrow"><span>HTTPS / JSON</span></div>
+        <div class="arch-node">
+          <div class="arch-icon">☁️</div>
+          <h4>Cloud Brain</h4>
+          <p>Firebase Functions<br/>AI + <code>campus.json</code></p>
+        </div>
+      </div>
+
+      <!-- steps -->
+      <div class="timeline">
+        <div class="step reveal">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Wake-up detection</h3>
+            <p>Pepper’s on-board <code>ALSpeechRecognition</code> runs in word-spotting mode with a broad
+              English + Finnish vocabulary (<em>hello, hei, moi, what, missä, wifi, kirjasto…</em>). When it hears
+              one of these words, a conversation session begins.</p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Instant greeting</h3>
+            <p>Simple phrases like <em>“hello”, “hi”, “thank you”, “bye”</em> are answered from an
+              <strong>instant cache</strong> in under 100 ms — no internet round-trip — together with a wave or nod gesture.</p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>Live listening</h3>
+            <p>Pepper records your voice from its front microphone (16 kHz WAV) in short 1-second chunks.
+              Each chunk is transcribed in the background, so the tablet shows <strong>live captions</strong>
+              while you are still speaking. About 2 seconds of silence means you are done.</p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h3>Transcription &amp; language detection</h3>
+            <p>Audio is sent to <strong>Google Speech-to-Text</strong> with Finnish as the primary language and
+              English as an alternative. The detected language decides which voice Pepper will answer with.</p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h3>Thinking in the cloud</h3>
+            <p>The question is POSTed to a <strong>Firebase Cloud Function</strong>. There, Laurimate’s custom AI
+              is given its personality, the current Helsinki date &amp; time and the full Laurea campus knowledge
+              base, and produces a short, spoken-style answer (2–4 sentences, no lists or symbols).</p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h3>Answer with body language</h3>
+            <p>Pepper speaks the answer with <code>ALAnimatedSpeech</code>, choosing a gesture that fits:
+              <em>ShowTablet</em> for “where” questions, <em>Explain</em> for “how/what”, <em>Enthusiastic</em>
+              for “thanks/great”. The tablet displays your question and the answer.</p>
+          </div>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">7</div>
+          <div class="step-body">
+            <h3>Ready for the next question</h3>
+            <p>Pepper immediately listens again — no need to say “hello” twice. If nobody speaks for
+              <strong>60 seconds</strong>, the session ends, the tablet returns to the welcome screen and the
+              robot waits for the next visitor.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- tablet states -->
+      <div class="sub-head reveal">
+        <h3>Tablet screen states</h3>
+        <p>Watch Pepper’s chest tablet — it always tells you what the robot is doing.</p>
+      </div>
+      <div class="states">
+        <div class="state reveal">
+          <div class="state-screen">
+            <img src="laurea.png" alt="Laurea logo" class="state-logo" />
+            <span class="state-label">How can I help?</span>
+          </div>
+          <h4>Welcome</h4>
+          <p>Idle. Say “Hello” or “Hei” to start.</p>
+        </div>
+        <div class="state reveal">
+          <div class="state-screen">
+            <div class="mini-bubble listening"></div>
+            <span class="state-label">Listening…</span>
+          </div>
+          <h4>Listening</h4>
+          <p>Pulsing bubble — speak now. Live captions appear.</p>
+        </div>
+        <div class="state reveal">
+          <div class="state-screen">
+            <div class="dots"><span></span><span></span><span></span></div>
+            <span class="state-label">Thinking…</span>
+          </div>
+          <h4>Thinking</h4>
+          <p>Your question is being processed. Please wait.</p>
+        </div>
+        <div class="state reveal">
+          <div class="state-screen answer">
+            <span class="q">Where is the library?</span>
+            <span class="a">The campus library is…</span>
+          </div>
+          <h4>Answer</h4>
+          <p>Question + answer shown while Pepper speaks.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW TO USE ============ -->
+  <section class="section" id="use">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">For students &amp; visitors</span>
+        <h2>How to use Laurimate</h2>
+        <p>Talking to Laurimate is as easy as talking to a person. Follow these steps.</p>
+      </div>
+
+      <div class="use-grid">
+        <div class="use-step reveal">
+          <span class="use-n">01</span>
+          <h3>Stand in front of Pepper</h3>
+          <p>Stand about <strong>0.5 – 1 metre</strong> in front of the robot, facing its tablet. Pepper will turn
+            its head to look at you.</p>
+        </div>
+        <div class="use-step reveal">
+          <span class="use-n">02</span>
+          <h3>Say hello</h3>
+          <p>Start with a greeting: <span class="say">“Hello”</span> <span class="say">“Hey Laurimate”</span>
+            <span class="say">“Hei”</span> <span class="say">“Moi”</span>. Pepper waves and replies.</p>
+        </div>
+        <div class="use-step reveal">
+          <span class="use-n">03</span>
+          <h3>Wait for “Listening”</h3>
+          <p>When the tablet shows the <strong>pulsing blue bubble</strong>, Pepper is ready. Don’t talk while it is
+            still speaking — it can’t listen and talk at the same time.</p>
+        </div>
+        <div class="use-step reveal">
+          <span class="use-n">04</span>
+          <h3>Ask your question</h3>
+          <p>Speak clearly at a normal pace, in English or Finnish. Ask one thing at a time, e.g.
+            <span class="say">“What is the Wi-Fi password?”</span></p>
+        </div>
+        <div class="use-step reveal">
+          <span class="use-n">05</span>
+          <h3>Pause and listen</h3>
+          <p>Stop talking for ~2 seconds so Pepper knows you’re done. Watch the tablet: you’ll see your words,
+            then “Thinking…”, then the answer.</p>
+        </div>
+        <div class="use-step reveal">
+          <span class="use-n">06</span>
+          <h3>Keep the conversation going</h3>
+          <p>Ask follow-ups straight away — no need to greet again. Say <span class="say">“Thank you”</span> or
+            <span class="say">“Bye”</span> when finished, or just walk away.</p>
+        </div>
+      </div>
+
+      <div class="tips reveal">
+        <div class="tip do">
+          <h4>✅ Do</h4>
+          <ul>
+            <li>Speak clearly and a little louder in noisy hallways</li>
+            <li>Ask short, specific questions</li>
+            <li>Wait until Pepper finishes speaking</li>
+            <li>Use full sentences (“Where is the cafeteria?”)</li>
+            <li>Switch to Finnish anytime — it will follow you</li>
+          </ul>
+        </div>
+        <div class="tip dont">
+          <h4>❌ Don’t</h4>
+          <ul>
+            <li>Shout directly into the head or stand too far away</li>
+            <li>Ask several questions in one sentence</li>
+            <li>Push, lean on or try to move the robot</li>
+            <li>Share personal data (passwords, ID numbers)</li>
+            <li>Rely on it for emergencies — call <strong>112</strong></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- demo conversation -->
+      <div class="convo reveal">
+        <div class="convo-head">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="convo-title">Example conversation</span>
+        </div>
+        <div class="convo-body" id="convo">
+          <div class="msg user">Hello!</div>
+          <div class="msg bot">Hello, I’m listening.</div>
+          <div class="msg user">Where is the library on this campus?</div>
+          <div class="msg bot">The library is right here on the Leppävaara campus. You can borrow books, use quiet study spaces and print there. Would you like to know the opening hours?</div>
+          <div class="msg user">Missä voin tulostaa?</div>
+          <div class="msg bot">Voit tulostaa kampuksen kirjastossa ja tulostimilla Laurean käyttäjätunnuksellasi.</div>
+          <div class="msg user">Thank you!</div>
+          <div class="msg bot">You are welcome!</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TOPICS ============ -->
+  <section class="section section-alt" id="topics">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Knowledge base</span>
+        <h2>What can I ask?</h2>
+        <p>Laurimate’s campus database covers more than <strong>1,800 questions</strong> across 24 topic areas — and
+          the AI can handle general questions too. Click a topic to see example questions.</p>
+      </div>
+
+      <div class="topics" id="topicGrid"></div>
+
+      <div class="example-box reveal" id="exampleBox">
+        <h4 id="exampleTitle">💡 Try asking…</h4>
+        <ul id="exampleList"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ OPERATOR GUIDE ============ -->
+  <section class="section" id="operator">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">For staff &amp; developers</span>
+        <h2>Operator guide</h2>
+        <p>How to start, update and maintain Laurimate on the Pepper robot.</p>
+      </div>
+
+      <div class="tabs reveal">
+        <div class="tab-buttons" role="tablist">
+          <button class="tab-btn active" data-tab="start">▶ Start the robot</button>
+          <button class="tab-btn" data-tab="update">⬆ Update code</button>
+          <button class="tab-btn" data-tab="cloud">☁ Cloud backend</button>
+          <button class="tab-btn" data-tab="stop">■ Stop / shut down</button>
+        </div>
+
+        <div class="tab-panel active" id="tab-start">
+          <h3>Starting Laurimate</h3>
+          <ol class="ops">
+            <li><strong>Power on Pepper</strong> — press the chest button once and wait (~1–2 min) until the robot
+              says it’s ready and the tablet lights up.</li>
+            <li><strong>Connect to the same network</strong> — your laptop must be on the same Wi-Fi/LAN as the
+              robot. Press the chest button once to hear Pepper say its IP address
+              (default in the code: <code>192.168.0.118</code>).</li>
+            <li><strong>SSH into the robot</strong>
+              <div class="code"><button class="copy">Copy</button><pre>ssh nao@192.168.0.118</pre></div>
+              Enter the robot password (ask the project team — it is not published here).</li>
+            <li><strong>Run the assistant</strong>
+              <div class="code"><button class="copy">Copy</button><pre>python2.7 /home/nao/Laurimate/pepper_main.py</pre></div></li>
+            <li><strong>Check it works</strong> — Pepper wakes up its motors, waves, says
+              <em>“Hello! I am Laurimate, your campus assistant. How can I help you?”</em> and the tablet shows the welcome
+              screen. The terminal prints <code>[Laurimate] Listening with Google Speech-to-Text.</code></li>
+          </ol>
+          <div class="note">
+            <strong>Tip:</strong> keep the SSH terminal open — every step (trigger word, transcript, gesture, idle timer)
+            is logged with a <code>[Laurimate]</code> prefix, which is very useful for debugging.
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-update">
+          <h3>Uploading changes to the robot</h3>
+          <p>Run these from the project folder on your laptop <strong>every time you edit a file</strong>.</p>
+          <h4>1. Upload the Python brain</h4>
+          <div class="code"><button class="copy">Copy</button><pre>scp pepper_main.py nao@192.168.0.118:/home/nao/Laurimate/pepper_main.py</pre></div>
+          <h4>2. Upload the tablet UI</h4>
+          <div class="code"><button class="copy">Copy</button><pre>scp tablet/index.html nao@192.168.0.118:/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7/html/index.html</pre></div>
+          <h4>3. Restart</h4>
+          <div class="code"><button class="copy">Copy</button><pre>ssh nao@192.168.0.118
+python2.7 /home/nao/Laurimate/pepper_main.py</pre></div>
+          <div class="note">
+            The tablet URL is loaded with a cache-busting timestamp (<code>?t=…</code>), so a restart always shows the newest
+            tablet page.
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-cloud">
+          <h3>Updating the knowledge &amp; AI backend</h3>
+          <ol class="ops">
+            <li><strong>Edit the knowledge base</strong> — campus questions and answers live in
+              <code>functions/data/campus.json</code>, organised in sections (A, B, … Study8), each with numbered
+              <code>{ "q": "...", "a": "..." }</code> entries.</li>
+            <li><strong>Test locally</strong> — open <code>test.html</code> in a browser to chat with the backend and
+              check answers before deploying.</li>
+            <li><strong>Deploy</strong> — from the project root:
+              <div class="code"><button class="copy">Copy</button><pre>firebase deploy --only functions</pre></div></li>
+            <li>The robot picks up the new knowledge immediately — no robot restart needed.</li>
+          </ol>
+          <div class="note">
+            The AI key is stored as a Firebase <strong>secret</strong> (<code>GEMINI_API_KEY</code>) and never ships to the
+            robot or the tablet.
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tab-stop">
+          <h3>Stopping Laurimate</h3>
+          <ol class="ops">
+            <li>In the SSH terminal press <kbd>Ctrl</kbd> + <kbd>C</kbd>. Laurimate unsubscribes from speech
+              recognition, hides the tablet page and shuts down cleanly.</li>
+            <li>To power off the robot, <strong>press and hold the chest button</strong> for about 3 seconds until
+              Pepper says goodbye and goes into rest position.</li>
+            <li>Before moving Pepper, make sure it is in rest mode and the wheels are free. Never lift it by the arms or head.</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- tech stack -->
+      <div class="sub-head reveal">
+        <h3>Tech stack</h3>
+      </div>
+      <div class="stack reveal">
+        <div class="stack-col">
+          <h4>🤖 Robot (on-device)</h4>
+          <ul>
+            <li><span>OS</span>NAOqi OS (Linux)</li>
+            <li><span>Language</span>Python 2.7</li>
+            <li><span>Framework</span>NAOqi SDK + ALModules</li>
+            <li><span>Trigger</span>ALSpeechRecognition</li>
+            <li><span>Voice</span>ALTextToSpeech / ALAnimatedSpeech</li>
+            <li><span>Audio</span>ALAudioRecorder, 16 kHz WAV</li>
+            <li><span>Motion</span>ALAnimationPlayer, ALMotion</li>
+          </ul>
+        </div>
+        <div class="stack-col">
+          <h4>☁️ Cloud backend</h4>
+          <ul>
+            <li><span>Hosting</span>Google Firebase</li>
+            <li><span>Service</span>Cloud Functions v2</li>
+            <li><span>Runtime</span>Node.js</li>
+            <li><span>Speech</span>Google Speech-to-Text</li>
+            <li><span>AI</span>Custom Laurimate AI</li>
+            <li><span>Knowledge</span><code>campus.json</code></li>
+          </ul>
+        </div>
+        <div class="stack-col">
+          <h4>📱 Tablet UI</h4>
+          <ul>
+            <li><span>Markup</span>HTML5</li>
+            <li><span>Style</span>CSS3 animations</li>
+            <li><span>Logic</span>Vanilla JavaScript</li>
+            <li><span>Display</span>ALTabletService WebView</li>
+            <li><span>States</span>Welcome → Listening → Thinking → Answer</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TEAM ============ -->
+  <section class="section section-alt" id="team">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Who made it</span>
+        <h2>The team behind Laurimate</h2>
+        <p>Laurimate was designed and built as an academic project at Laurea University of Applied Sciences, Finland.</p>
+      </div>
+
+      <div class="team">
+        <div class="member reveal">
+          <div class="avatar">R</div>
+          <h3>Rakesh</h3>
+          <span class="role">Co-creator · Developer</span>
+          <p>Designed and built Laurimate — robot programming, speech pipeline, cloud AI and tablet interface.</p>
+        </div>
+        <div class="member reveal">
+          <div class="avatar alt">P</div>
+          <h3>Prasiddha</h3>
+          <span class="role">Co-creator · Developer</span>
+          <p>Designed and built Laurimate — robot programming, campus knowledge base, cloud AI and tablet interface.</p>
+        </div>
+        <div class="member reveal">
+          <div class="avatar logo"><img src="laurea_logo.png" alt="Laurea" /></div>
+          <h3>Laurea UAS</h3>
+          <span class="role">Host institution</span>
+          <p>Laurea University of Applied Sciences — Leppävaara campus, Vanha maantie 9, 02650 Espoo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="section" id="faq">
+    <div class="container narrow">
+      <div class="section-head reveal">
+        <span class="eyebrow">Help</span>
+        <h2>FAQ &amp; troubleshooting</h2>
+      </div>
+
+      <div class="faq">
+        <details class="reveal">
+          <summary>Pepper doesn’t react when I talk.</summary>
+          <p>Start with a clear greeting such as “Hello” or “Hei”, standing within 1 metre. If the tablet shows the welcome
+            screen but nothing happens, the program may not be running — ask a staff member to check the terminal.</p>
+        </details>
+        <details class="reveal">
+          <summary>It misunderstood my question.</summary>
+          <p>Background noise is the usual cause. Move a little closer, speak clearly and pause for 2 seconds after the
+            question. Check the tablet — it shows exactly what Pepper heard, so you can rephrase.</p>
+        </details>
+        <details class="reveal">
+          <summary>Pepper says it “could not reach the knowledge base”.</summary>
+          <p>The robot lost its internet connection or the cloud function is unavailable. Check the robot’s Wi-Fi and that the
+            Firebase function is deployed, then try again.</p>
+        </details>
+        <details class="reveal">
+          <summary>Which languages does it understand?</summary>
+          <p>English and Finnish. The language is detected automatically for each question, and Pepper replies in the same
+            language.</p>
+        </details>
+        <details class="reveal">
+          <summary>Does Laurimate record or store my voice?</summary>
+          <p>Audio is recorded only temporarily on the robot to transcribe your question and is overwritten by the next
+            recording. The transcribed text is sent to the cloud only to generate an answer. Please don’t share personal or
+            sensitive information with the robot.</p>
+        </details>
+        <details class="reveal">
+          <summary>Why does it go back to the welcome screen?</summary>
+          <p>After 60 seconds without any speech the session ends automatically, so the next visitor starts fresh. Just say
+            “Hello” again to begin a new conversation.</p>
+        </details>
+        <details class="reveal">
+          <summary>Can I trust every answer?</summary>
+          <p>Campus answers come from a curated database, but the AI can occasionally be wrong. For official matters (grades,
+            admissions, deadlines) always confirm with Study Services or the Laurea website.</p>
+        </details>
+        <details class="reveal">
+          <summary>The tablet shows an old version of the page.</summary>
+          <p>Re-upload <code>tablet/index.html</code> with <code>scp</code> and restart <code>pepper_main.py</code> — the page is
+            loaded with a fresh cache-busting URL on every start.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <a href="#top" class="brand">
+          <span class="brand-dot"></span>Lauri<span class="accent">mate</span>
+        </a>
+        <p>Pepper robot campus assistant for Laurea University of Applied Sciences.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#about">About</a>
+        <a href="#how">How it works</a>
+        <a href="#use">How to use</a>
+        <a href="#operator">Operator guide</a>
+        <a href="#team">Team</a>
+      </div>
+      <div class="footer-meta">
+        <img src="laurea_logo.png" alt="Laurea" />
+        <p>© <span id="year"></span> Rakesh &amp; Prasiddha · Academic project at Laurea UAS</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
