@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laurimate</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800');
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      background-color: #060b18;
+      font-family: 'Poppins', 'Open Sans', Arial, sans-serif;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+
+    /* ── Subtle grid background ── */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(30, 45, 69, 0.4) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 45, 69, 0.4) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Ambient glow ── */
+    body::after {
+      content: '';
+      position: absolute;
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 174, 239, 0.07) 0%, transparent 70%);
+      top: -250px;
+      left: 50%;
+      margin-left: -350px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Particle canvas */
+    #particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Page layout ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ═══════════════════════════════
+       TOP — header
+    ═══════════════════════════════ */
+    .header {
+      position: absolute;
+      top: 24px;
+      left: 0;
+      right: 0;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-justify-content: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .brand-container {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+    }
+
+    .brand-logo {
+      height: 56px;
+      margin-right: 14px;
+      border-radius: 8px;
+    }
+
+    .brand-text {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-justify-content: center;
+      justify-content: center;
+      -webkit-align-items: flex-start;
+      align-items: flex-start;
+    }
+
+    .brand-name {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: none;
+      -webkit-text-fill-color: #1e6540;
+      color: #1e6540;
+      line-height: 1;
+      margin-bottom: 1px;
+    }
+
+    .byline {
+      font-size: 11px;
+      font-weight: 500;
+      color: #64748b;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    /* ═══════════════════════════════
+       CENTER — voice bubble (active states)
+    ═══════════════════════════════ */
+    .bubble-area {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      z-index: 5;
+      -webkit-transition: -webkit-transform 0.65s cubic-bezier(0.25, 1, 0.5, 1);
+      transition: transform 0.65s cubic-bezier(0.25, 1, 0.5, 1);
+      -webkit-transform: translateY(0);
+      transform: translateY(0);
+    }
+
+    .bubble-area.shift-up-short {
+      -webkit-transform: translateY(-24px);
+      transform: translateY(-24px);
+    }
+
+    .bubble-area.shift-up-long {
+      -webkit-transform: translateY(-55px);
+      transform: translateY(-55px);
+    }
+
+    /* Wave rings (for listening state) */
+    .wave-rings {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .wave {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid #38bdf8;
+      opacity: 0;
+      top: 50%;
+      left: 50%;
+      margin-top: -100px;
+      margin-left: -100px;
+      width: 200px;
+      height: 200px;
+    }
+
+    /* Bubble wrapper */
+    .bubble-wrap {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin-top: 28px;
+    }
+
+    /* Main bubble */
+    .bubble {
+      position: absolute;
+      z-index: 2;
+      width: 180px;
+      height: 180px;
+      top: 50%;
+      left: 50%;
+      margin-top: -90px;
+      margin-left: -90px;
+      border-radius: 50%;
+      background-color: rgba(56, 189, 248, 0.15);
+      background: -webkit-radial-gradient(38% 38%, circle, rgba(56, 189, 248, 0.22), rgba(129, 140, 248, 0.12));
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.3), inset 0 0 40px rgba(56, 189, 248, 0.08);
+      -webkit-transition: border-color 0.5s, box-shadow 0.5s;
+      transition: border-color 0.5s, box-shadow 0.5s;
+    }
+
+    .mic-icon {
+      font-size: 40px;
+      color: #e2e8f0;
+    }
+
+    /* ── Idle state: heartbeat double-thump ── */
+    .bubble.idle {
+      -webkit-animation: idle-heartbeat 2s ease-in-out infinite;
+      animation: idle-heartbeat 2s ease-in-out infinite;
+    }
+
+    @-webkit-keyframes idle-heartbeat {
+
+      0%,
+      40%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25), inset 0 0 40px rgba(56, 189, 248, 0.06);
+        -webkit-transform: scale(1);
+        transform: scale(1);
+      }
+
+      10% {
+        box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.0), inset 0 0 50px rgba(56, 189, 248, 0.1);
+        -webkit-transform: scale(1.05);
+        transform: scale(1.05);
+      }
+
+      25% {
+        box-shadow: 0 0 0 20px rgba(56, 189, 248, 0.0), inset 0 0 60px rgba(56, 189, 248, 0.12);
+        -webkit-transform: scale(1.08);
+        transform: scale(1.08);
+      }
+    }
+
+    @keyframes idle-heartbeat {
+
+      0%,
+      40%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25), inset 0 0 40px rgba(56, 189, 248, 0.06);
+        transform: scale(1);
+      }
+
+      10% {
+        box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.0), inset 0 0 50px rgba(56, 189, 248, 0.1);
+        transform: scale(1.05);
+      }
+
+      25% {
+        box-shadow: 0 0 0 20px rgba(56, 189, 248, 0.0), inset 0 0 60px rgba(56, 189, 248, 0.12);
+        transform: scale(1.08);
+      }
+    }
+
+    /* ── Listening state ── */
+    .bubble.listening {
+      border-color: rgba(56, 189, 248, 0.8);
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.35), inset 0 0 40px rgba(56, 189, 248, 0.1);
+      -webkit-animation: none;
+      animation: none;
+    }
+
+    .wave.listening {
+      -webkit-animation: wave-expand 2s ease-out infinite;
+      animation: wave-expand 2s ease-out infinite;
+    }
+
+    .wave.listening:nth-child(2) {
+      -webkit-animation-delay: 0.55s;
+      animation-delay: 0.55s;
+    }
+
+    .wave.listening:nth-child(3) {
+      -webkit-animation-delay: 1.1s;
+      animation-delay: 1.1s;
+    }
+
+    @-webkit-keyframes wave-expand {
+      0% {
+        opacity: 0.7;
+        -webkit-transform: scale(1);
+        transform: scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        -webkit-transform: scale(2.2);
+        transform: scale(2.2);
+      }
+    }
+
+    @keyframes wave-expand {
+      0% {
+        opacity: 0.7;
+        transform: scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(2.2);
+      }
+    }
+
+    /* ── Thinking state ── */
+    .bubble.thinking {
+      border-color: rgba(251, 191, 36, 0.5);
+      box-shadow: 0 0 30px rgba(251, 191, 36, 0.2), inset 0 0 40px rgba(251, 191, 36, 0.06);
+      -webkit-animation: none;
+      animation: none;
+    }
+
+    .think-orbit {
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      margin-top: -105px;
+      margin-left: -105px;
+      -webkit-animation: orbit-spin 1.8s linear infinite;
+      animation: orbit-spin 1.8s linear infinite;
+      pointer-events: none;
+    }
+
+    .think-orbit::before {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fbbf24;
+      top: -6px;
+      left: 50%;
+      margin-left: -6px;
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.8);
+    }
+
+    @-webkit-keyframes orbit-spin {
+      to {
+        -webkit-transform: rotate(360deg);
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes orbit-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── No-speech / error state ── */
+    .bubble.nospeech {
+      border-color: rgba(239, 68, 68, 0.6);
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.25), inset 0 0 40px rgba(239, 68, 68, 0.08);
+      -webkit-animation: error-shake 0.5s ease-in-out 1;
+      animation: error-shake 0.5s ease-in-out 1;
+    }
+
+    @-webkit-keyframes error-shake {
+      0% {
+        -webkit-transform: translateX(0);
+        transform: translateX(0);
+      }
+
+      18% {
+        -webkit-transform: translateX(-10px);
+        transform: translateX(-10px);
+      }
+
+      36% {
+        -webkit-transform: translateX(10px);
+        transform: translateX(10px);
+      }
+
+      54% {
+        -webkit-transform: translateX(-8px);
+        transform: translateX(-8px);
+      }
+
+      72% {
+        -webkit-transform: translateX(8px);
+        transform: translateX(8px);
+      }
+
+      88% {
+        -webkit-transform: translateX(-4px);
+        transform: translateX(-4px);
+      }
+
+      100% {
+        -webkit-transform: translateX(0);
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes error-shake {
+      0% {
+        transform: translateX(0);
+      }
+
+      18% {
+        transform: translateX(-10px);
+      }
+
+      36% {
+        transform: translateX(10px);
+      }
+
+      54% {
+        transform: translateX(-8px);
+      }
+
+      72% {
+        transform: translateX(8px);
+      }
+
+      88% {
+        transform: translateX(-4px);
+      }
+
+      100% {
+        transform: translateX(0);
+      }
+    }
+
+    .status-pill.nospeech {
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.06);
+    }
+
+    /* ── Speaking state ── */
+    .bubble.speaking {
+      border-color: rgba(129, 140, 248, 0.8);
+      box-shadow: 0 0 35px rgba(129, 140, 248, 0.4), inset 0 0 50px rgba(129, 140, 248, 0.12);
+      -webkit-animation: speak-pulse 0.8s ease-in-out infinite;
+      animation: speak-pulse 0.8s ease-in-out infinite;
+    }
+
+    @-webkit-keyframes speak-pulse {
+
+      0%,
+      100% {
+        -webkit-transform: scale(1);
+        transform: scale(1);
+        box-shadow: 0 0 35px rgba(129, 140, 248, 0.35), inset 0 0 50px rgba(129, 140, 248, 0.10);
+      }
+
+      50% {
+        -webkit-transform: scale(1.06);
+        transform: scale(1.06);
+        box-shadow: 0 0 55px rgba(129, 140, 248, 0.60), inset 0 0 70px rgba(129, 140, 248, 0.18);
+      }
+    }
+
+    @keyframes speak-pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 35px rgba(129, 140, 248, 0.35), inset 0 0 50px rgba(129, 140, 248, 0.10);
+      }
+
+      50% {
+        transform: scale(1.06);
+        box-shadow: 0 0 55px rgba(129, 140, 248, 0.60), inset 0 0 70px rgba(129, 140, 248, 0.18);
+      }
+    }
+
+    /* ═══════════════════════════════
+       STATUS PILL
+    ═══════════════════════════════ */
+    .status-pill {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #64748b;
+      padding: 7px 18px;
+      border: 1px solid #1e2d45;
+      border-radius: 100px;
+      background: #111827;
+      -webkit-transition: color 0.4s, border-color 0.4s, background 0.4s;
+      transition: color 0.4s, border-color 0.4s, background 0.4s;
+    }
+
+    .status-pill.idle {
+      color: #64748b;
+      border-color: #1e2d45;
+    }
+
+    .status-pill.listening {
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.5);
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    .status-pill.thinking {
+      color: #fbbf24;
+      border-color: rgba(251, 191, 36, 0.5);
+      background: rgba(251, 191, 36, 0.06);
+    }
+
+    .status-pill.speaking {
+      color: #818cf8;
+      border-color: rgba(129, 140, 248, 0.5);
+      background: rgba(129, 140, 248, 0.06);
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      margin-right: 8px;
+    }
+
+    .status-pill.listening .pill-dot {
+      -webkit-animation: blink-dot 1s ease-in-out infinite;
+      animation: blink-dot 1s ease-in-out infinite;
+    }
+
+    .status-pill.thinking .pill-dot {
+      -webkit-animation: blink-dot 0.5s ease-in-out infinite;
+      animation: blink-dot 0.5s ease-in-out infinite;
+    }
+
+    .status-pill.speaking .pill-dot {
+      -webkit-animation: blink-dot 0.7s ease-in-out infinite;
+      animation: blink-dot 0.7s ease-in-out infinite;
+    }
+
+    @-webkit-keyframes blink-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.2;
+      }
+    }
+
+    @keyframes blink-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.2;
+      }
+    }
+
+    /* ═══════════════════════════════
+       BOTTOM — caption area (active states)
+    ═══════════════════════════════ */
+    .caption-area {
+      position: absolute;
+      bottom: 60px;
+      left: 0;
+      right: 0;
+      width: 100%;
+      min-height: 100px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      text-align: center;
+      z-index: 10;
+      box-sizing: border-box;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .caption-label {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+
+    .caption-transcript {
+      font-size: 16px;
+      font-weight: 500;
+      color: #38bdf8;
+      min-height: 22px;
+      margin-bottom: 8px;
+      max-width: 1220px;
+      width: 96%;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 16px;
+      box-sizing: border-box;
+      word-wrap: break-word;
+    }
+
+    .caption-answer {
+      font-size: 17px;
+      font-weight: 400;
+      color: #f8fafc;
+      line-height: 1.6;
+      min-height: 24px;
+      max-width: 1220px;
+      width: 96%;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 6px 12px;
+      box-sizing: border-box;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      word-wrap: break-word;
+      display: inline-block;
+    }
+
+    .source-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-top: 12px;
+      opacity: 0;
+      -webkit-transition: opacity 0.4s;
+      transition: opacity 0.4s;
+    }
+
+    .source-badge.visible {
+      opacity: 1;
+    }
+
+    .source-badge.faq {
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+    }
+
+    .source-badge.ai {
+      background: rgba(129, 140, 248, 0.12);
+      color: #818cf8;
+    }
+
+    /* ═══════════════════════════════════════════
+       IDLE PANEL — Redesigned Welcome Screen
+    ═══════════════════════════════════════════ */
+    .idle-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding-top: 40px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      z-index: 8;
+      -webkit-transition: opacity 0.5s;
+      transition: opacity 0.5s;
+    }
+
+    .idle-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ── Animated orb centerpiece ── */
+    .orb-container {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin-bottom: 35px;
+      margin-top: 25px;
+    }
+
+    .orb {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: -webkit-radial-gradient(30% 30%, circle, rgba(0, 174, 239, 0.35), rgba(129, 140, 248, 0.2) 50%, rgba(6, 11, 24, 0) 70%);
+      background: radial-gradient(circle at 30% 30%, rgba(0, 174, 239, 0.35), rgba(129, 140, 248, 0.2) 50%, rgba(6, 11, 24, 0) 70%);
+      border: 1.5px solid rgba(0, 174, 239, 0.25);
+      box-shadow:
+        0 0 50px rgba(0, 174, 239, 0.15),
+        0 0 90px rgba(129, 140, 248, 0.08),
+        inset 0 0 45px rgba(0, 174, 239, 0.1);
+      -webkit-animation: orb-breathe 4s ease-in-out infinite;
+      animation: orb-breathe 4s ease-in-out infinite;
+    }
+
+    .orb-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 174, 239, 0.12);
+      pointer-events: none;
+    }
+
+    .orb-ring:nth-child(2) {
+      width: 150px;
+      height: 150px;
+      margin-top: -75px;
+      margin-left: -75px;
+      -webkit-animation: ring-rotate 12s linear infinite;
+      animation: ring-rotate 12s linear infinite;
+    }
+
+    .orb-ring:nth-child(3) {
+      width: 180px;
+      height: 180px;
+      margin-top: -90px;
+      margin-left: -90px;
+      border-color: rgba(129, 140, 248, 0.08);
+      -webkit-animation: ring-rotate 18s linear infinite reverse;
+      animation: ring-rotate 18s linear infinite reverse;
+    }
+
+    /* Small dots on rings */
+    .orb-ring:nth-child(2)::before {
+      content: '';
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00AEEF;
+      top: -3px;
+      left: 50%;
+      margin-left: -3px;
+      box-shadow: 0 0 8px rgba(0, 174, 239, 0.6);
+    }
+
+    .orb-ring:nth-child(3)::before {
+      content: '';
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #818cf8;
+      bottom: -2px;
+      left: 50%;
+      margin-left: -2px;
+      box-shadow: 0 0 8px rgba(129, 140, 248, 0.6);
+    }
+
+    @-webkit-keyframes orb-breathe {
+
+      0%,
+      100% {
+        -webkit-transform: scale(1);
+        transform: scale(1);
+        box-shadow: 0 0 60px rgba(0, 174, 239, 0.15), 0 0 120px rgba(129, 140, 248, 0.08), inset 0 0 60px rgba(0, 174, 239, 0.1);
+      }
+
+      50% {
+        -webkit-transform: scale(1.06);
+        transform: scale(1.06);
+        box-shadow: 0 0 80px rgba(0, 174, 239, 0.22), 0 0 160px rgba(129, 140, 248, 0.12), inset 0 0 80px rgba(0, 174, 239, 0.15);
+      }
+    }
+
+    @keyframes orb-breathe {
+
+      0%,
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 60px rgba(0, 174, 239, 0.15), 0 0 120px rgba(129, 140, 248, 0.08), inset 0 0 60px rgba(0, 174, 239, 0.1);
+      }
+
+      50% {
+        transform: scale(1.06);
+        box-shadow: 0 0 80px rgba(0, 174, 239, 0.22), 0 0 160px rgba(129, 140, 248, 0.12), inset 0 0 80px rgba(0, 174, 239, 0.15);
+      }
+    }
+
+    @-webkit-keyframes ring-rotate {
+      to {
+        -webkit-transform: rotate(360deg);
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes ring-rotate {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── Welcome text ── */
+    .welcome-greeting {
+      font-size: 26px;
+      font-weight: 400;
+      color: #e2e8f0;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+      -webkit-animation: fade-slide-up 0.8s ease-out both;
+      animation: fade-slide-up 0.8s ease-out both;
+    }
+
+    .welcome-greeting .highlight,
+    .welcome-name .highlight {
+      font-weight: 700;
+      background: none;
+      -webkit-text-fill-color: #1e6540;
+      color: #1e6540;
+    }
+
+    .welcome-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 14px;
+      -webkit-animation: fade-slide-up 0.8s ease-out 0.15s both;
+      animation: fade-slide-up 0.8s ease-out 0.15s both;
+    }
+
+    /* ── Wake prompt badge (after buttons) ── */
+    .wake-footer-prompt {
+      margin-top: 36px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 500;
+      color: #e2e8f0;
+      letter-spacing: 0.4px;
+      padding: 7px 20px;
+      border-radius: 100px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1.5px solid rgba(56, 189, 248, 0.24);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      -webkit-animation: fade-slide-up 0.8s ease-out 0.55s both;
+      animation: fade-slide-up 0.8s ease-out 0.55s both;
+    }
+
+    .wake-footer-prompt .prompt-mic {
+      display: -webkit-inline-flex;
+      display: inline-flex;
+      color: #38bdf8;
+      margin-right: 8px;
+    }
+
+    .wake-footer-prompt .wake-highlight {
+      color: #38bdf8;
+      font-weight: 600;
+      font-size: 14px;
+      margin: 0 2px;
+    }
+
+    .welcome-sub {
+      font-size: 13px;
+      font-weight: 400;
+      color: #475569;
+      letter-spacing: 0.3px;
+      margin-bottom: 32px;
+      -webkit-animation: fade-slide-up 0.8s ease-out 0.3s both;
+      animation: fade-slide-up 0.8s ease-out 0.3s both;
+    }
+
+    @-webkit-keyframes fade-slide-up {
+      from {
+        opacity: 0;
+        -webkit-transform: translateY(12px);
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        -webkit-transform: translateY(0);
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fade-slide-up {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ── Interaction Flow Section (How it works) ── */
+    .interaction-flow {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: flex-start;
+      align-items: flex-start;
+      -webkit-justify-content: center;
+      justify-content: center;
+      margin-top: 8px;
+      -webkit-animation: fade-slide-up 0.8s ease-out 0.45s both;
+      animation: fade-slide-up 0.8s ease-out 0.45s both;
+    }
+
+    .flow-step {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      width: 96px;
+    }
+
+    .flow-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      border: 1.5px solid rgba(56, 189, 248, 0.3);
+      background: rgba(10, 22, 45, 0.6);
+      box-sizing: border-box;
+      margin-bottom: 10px;
+      -webkit-transition: all 0.3s ease;
+      transition: all 0.3s ease;
+    }
+
+    .flow-icon {
+      width: 24px;
+      height: 24px;
+      color: #ffffff;
+    }
+
+    .flow-pill {
+      font-size: 12px;
+      font-weight: 600;
+      color: #f1f5f9;
+      letter-spacing: 0.3px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      border: 1.5px solid rgba(56, 189, 248, 0.3);
+      background: rgba(10, 22, 45, 0.6);
+      box-sizing: border-box;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .flow-arrow-wrap {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      height: 56px;
+      width: 32px;
+      color: #38bdf8;
+    }
+
+    .flow-arrow {
+      width: 18px;
+      height: 18px;
+      opacity: 0.85;
+    }
+
+    /* Step 1: Crisp clean cyan border without background glow */
+    .flow-step.active .flow-circle {
+      border-color: #38bdf8;
+      background: rgba(10, 22, 45, 0.6);
+      box-shadow: none;
+      color: #ffffff;
+    }
+
+    .flow-step.active .flow-pill {
+      border-color: #38bdf8;
+      background: rgba(10, 22, 45, 0.6);
+      box-shadow: none;
+      color: #ffffff;
+    }
+
+    /* ── Bottom credit line ── */
+    .bottom-credit {
+      position: absolute;
+      bottom: 14px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #94a3b8;
+      z-index: 10;
+    }
+
+    .bottom-credit .dot {
+      display: inline-block;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: #94a3b8;
+      margin: 0 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="particles"></canvas>
+
+  <div class="page">
+
+    <!-- ── HEADER ── -->
+    <div class="header">
+      <div class="brand-container">
+        <img src="laurea.png" alt="Laurea" class="brand-logo" />
+        <div class="brand-text">
+          <div class="brand-name">Laurimate</div>
+          <div class="byline">Campus AI Assistant</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VOICE BUBBLE (active states) ── -->
+    <div class="bubble-area" id="bubble-area">
+
+      <!-- Status pill -->
+      <div class="status-pill idle" id="status-pill" style="display: none;">
+        <div class="pill-dot"></div>
+        <span id="status-text">Ready</span>
+      </div>
+
+      <!-- Bubble + wave rings -->
+      <div class="bubble-wrap" id="bubble-wrap" style="display: none;">
+        <div class="wave-rings" id="wave-rings">
+          <div class="wave" id="w1"></div>
+          <div class="wave" id="w2"></div>
+          <div class="wave" id="w3"></div>
+        </div>
+        <div class="think-orbit" id="think-orbit" style="display:none;"></div>
+        <div class="bubble idle" id="bubble">
+          <div class="mic-icon" id="mic-icon"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CAPTION (active states) ── -->
+    <div class="caption-area">
+      <div class="caption-label" id="caption-label" style="display:none;"></div>
+      <div class="caption-transcript" id="caption-transcript" style="display:none;"></div>
+      <div class="caption-answer" id="caption-answer" style="display:none;"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         IDLE PANEL — Beautiful Welcome Screen
+    ═══════════════════════════════════════ -->
+    <div class="idle-panel" id="idle-panel">
+
+      <!-- Animated orb -->
+      <div class="orb-container">
+        <div class="orb"></div>
+        <div class="orb-ring"></div>
+        <div class="orb-ring"></div>
+      </div>
+
+      <!-- Greeting -->
+      <div class="welcome-greeting">Hi, I'm <span class="highlight">Laurimate</span></div>
+      <div class="welcome-name">Your Campus AI Assistant</div>
+
+      <!-- Interaction Flow Steps -->
+      <div class="interaction-flow">
+        <!-- Step 1: You Speak (Active Glowing Cyan) -->
+        <div class="flow-step active">
+          <div class="flow-circle">
+            <svg class="flow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+              <line x1="12" y1="18" x2="12" y2="22"></line>
+              <line x1="8" y1="22" x2="16" y2="22"></line>
+            </svg>
+          </div>
+          <div class="flow-pill">You Speak</div>
+        </div>
+
+        <!-- Arrow 1 -> 2 -->
+        <div class="flow-arrow-wrap">
+          <svg class="flow-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="12" x2="18" y2="12"></line>
+            <polyline points="13 7 18 12 13 17"></polyline>
+          </svg>
+        </div>
+
+        <!-- Step 2: I Listen -->
+        <div class="flow-step">
+          <div class="flow-circle">
+            <svg class="flow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 13a2 2 0 0 1 0-2"></path>
+              <path d="M8.5 7.5C8.5 4.5 11 3 13.5 3c2.8 0 4.5 1.8 4.5 4.5 0 2.8-1.5 4.2-2.5 5.5-.8 1.1-1 2.2-1 4 0 1-.7 1.5-1.5 1.5s-1.5-.7-1.5-2c0-2.3 1-3.2 2-4.5.9-1.2 1.5-2.2 1.5-3.5 0-1.5-1-2.5-2-2.5-1.2 0-2 .8-2 2.5"></path>
+              <path d="M20.5 7a8.5 8.5 0 0 1 0 9"></path>
+            </svg>
+          </div>
+          <div class="flow-pill">I Listen</div>
+        </div>
+
+        <!-- Arrow 2 -> 3 -->
+        <div class="flow-arrow-wrap">
+          <svg class="flow-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="12" x2="18" y2="12"></line>
+            <polyline points="13 7 18 12 13 17"></polyline>
+          </svg>
+        </div>
+
+        <!-- Step 3: I Think -->
+        <div class="flow-step">
+          <div class="flow-circle">
+            <svg class="flow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.5 4a3.5 3.5 0 0 0-3.5 3.5 3.5 3.5 0 0 0-.5 7 3.5 3.5 0 0 0 4 3.5V4z"></path>
+              <path d="M14.5 4a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1 .5 7 3.5 3.5 0 0 1-4 3.5V4z"></path>
+              <path d="M6 11h3.5"></path>
+              <path d="M14.5 11H18"></path>
+              <path d="M7.5 14.5a2 2 0 0 0 2-2"></path>
+              <path d="M16.5 14.5a2 2 0 0 1-2-2"></path>
+              <path d="M7.5 7.5a2 2 0 0 1 2 2"></path>
+              <path d="M16.5 7.5a2 2 0 0 0-2 2"></path>
+            </svg>
+          </div>
+          <div class="flow-pill">I Think</div>
+        </div>
+
+        <!-- Arrow 3 -> 4 -->
+        <div class="flow-arrow-wrap">
+          <svg class="flow-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="12" x2="18" y2="12"></line>
+            <polyline points="13 7 18 12 13 17"></polyline>
+          </svg>
+        </div>
+
+        <!-- Step 4: I Answer -->
+        <div class="flow-step">
+          <div class="flow-circle">
+            <svg class="flow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              <circle cx="8.5" cy="11.5" r="1" fill="currentColor"></circle>
+              <circle cx="12" cy="11.5" r="1" fill="currentColor"></circle>
+              <circle cx="15.5" cy="11.5" r="1" fill="currentColor"></circle>
+            </svg>
+          </div>
+          <div class="flow-pill">I Answer</div>
+        </div>
+      </div>
+
+      <!-- Wake Prompt after buttons -->
+      <div class="wake-footer-prompt">
+        <span class="prompt-mic">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="8" y1="22" x2="16" y2="22"></line>
+          </svg>
+        </span>
+        Say <span class="wake-highlight">"Hi"</span> or <span class="wake-highlight">"Hello"</span> to wake me up
+      </div>
+
+
+
+    </div>
+
+    <!-- Bottom credit -->
+    <div class="bottom-credit">
+      Built by Prasiddha & Rakesh
+    </div>
+
+  </div>
+
+  <script>
+    /* ═══════════════════════════════
+       PARTICLE BACKGROUND
+    ═══════════════════════════════ */
+    (function () {
+      var canvas = document.getElementById('particles');
+      var ctx = canvas.getContext('2d');
+      var particles = [];
+      var maxP = 35;
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      function Particle() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.vy = (Math.random() - 0.5) * 0.3;
+        this.r = Math.random() * 1.5 + 0.5;
+        this.alpha = Math.random() * 0.3 + 0.1;
+        var colors = ['0,174,239', '129,140,248', '110,231,183'];
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+      }
+
+      for (var i = 0; i < maxP; i++) particles.push(new Particle());
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (var i = 0; i < particles.length; i++) {
+          var p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = canvas.width;
+          if (p.x > canvas.width) p.x = 0;
+          if (p.y < 0) p.y = canvas.height;
+          if (p.y > canvas.height) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(' + p.color + ',' + p.alpha + ')';
+          ctx.fill();
+
+          // draw lines between nearby particles
+          for (var j = i + 1; j < particles.length; j++) {
+            var q = particles[j];
+            var dx = p.x - q.x;
+            var dy = p.y - q.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 120) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(q.x, q.y);
+              ctx.strokeStyle = 'rgba(0,174,239,' + (0.06 * (1 - dist / 120)) + ')';
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    /* ═══════════════════════════════
+       DOM refs (unchanged)
+    ═══════════════════════════════ */
+    var pill = document.getElementById('status-pill');
+    var pillText = document.getElementById('status-text');
+    var bubble = document.getElementById('bubble');
+    var w1 = document.getElementById('w1');
+    var w2 = document.getElementById('w2');
+    var w3 = document.getElementById('w3');
+    var thinkOrbit = document.getElementById('think-orbit');
+    var idlePanel = document.getElementById('idle-panel');
+    var capLabel = document.getElementById('caption-label');
+    var capTrans = document.getElementById('caption-transcript');
+    var capAnswer = document.getElementById('caption-answer');
+
+    var micIcon = document.getElementById('mic-icon');
+
+    var autoTimer = null;
+    var bubbleWrap = document.getElementById('bubble-wrap');
+    var bubbleArea = document.getElementById('bubble-area');
+
+    /* ── helpers ── */
+    function setPill(state, label) {
+      pill.className = 'status-pill ' + state;
+      pillText.textContent = label;
+    }
+
+    function setBubble(state) {
+      bubble.className = 'bubble ' + state;
+    }
+
+    function showWaves(on) {
+      var cls = on ? 'listening' : '';
+      [w1, w2, w3].forEach(function (w) { w.className = 'wave ' + cls; });
+    }
+
+    function showThinkOrbit(on) {
+      thinkOrbit.style.display = on ? 'block' : 'none';
+    }
+
+    function showHints(on) {
+      idlePanel.classList.toggle('hidden', !on);
+    }
+
+    function showCaption(label, transcript, answer) {
+      capLabel.textContent = label || '';
+      capLabel.style.display = label ? '' : 'none';
+      capTrans.textContent = transcript || '';
+      capTrans.style.display = transcript ? '' : 'none';
+      capAnswer.textContent = answer || '';
+      capAnswer.style.display = answer ? '' : 'none';
+    }
+
+    function clearAuto() {
+      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    }
+
+    function clearShift() {
+      if (bubbleArea) {
+        bubbleArea.classList.remove('shift-up-short', 'shift-up-long', 'shift-up');
+      }
+    }
+
+    /* ══════════════════════════════════
+       Python-callable functions
+    ══════════════════════════════════ */
+
+    /* Startup / between questions */
+    function showWelcome() {
+      clearAuto();
+      clearShift();
+      setPill('idle', 'Ready');
+      setBubble('idle');
+      showWaves(false);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = 'none';
+      pill.style.display = 'none';
+      micIcon.innerHTML = '';
+      showHints(true);
+      showCaption('', '', '');
+    }
+
+    /* Speech detected — recording */
+    function showListening() {
+      clearAuto();
+      clearShift();
+      setPill('listening', 'Listening');
+      setBubble('listening');
+      showWaves(true);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('Speak your question…', '', '');
+    }
+
+    /* Live text appearing while user is still speaking */
+    function showLiveText(text) {
+      clearAuto();
+      clearShift();
+      setPill('listening', 'Listening');
+      setBubble('listening');
+      showWaves(true);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('I heard so far…', '"' + text + '"', '');
+    }
+
+    /* Waiting for Firebase / Gemini */
+    function showThinking() {
+      clearAuto();
+      clearShift();
+      setPill('thinking', 'Thinking');
+      setBubble('thinking');
+      showWaves(false);
+      showThinkOrbit(true);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('Stopped listening', '', 'Looking that up for you…');
+    }
+
+    /* Show user's question immediately after STT returns */
+    function showTranscript(transcript) {
+      clearAuto();
+      clearShift();
+      setPill('thinking', 'Processing');
+      setBubble('thinking');
+      showWaves(false);
+      showThinkOrbit(true);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('You asked', '"' + transcript + '"', 'Finding the best answer…');
+    }
+
+    /* Final answer — source: "faq" or "ai" */
+    function showAnswer(question, answer, source) {
+      clearAuto();
+      clearShift();
+      setPill('speaking', 'Responding');
+      setBubble('speaking');
+      showWaves(false);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '';
+      showHints(false);
+      showCaption('You said', '"' + question + '"', answer);
+
+      // Move bubble as per answer length:
+      // If answer is short (1-2 lines), move little up (-24px)
+      // If answer is long (3-4 lines), move little more up (-55px)
+      if (bubbleArea && answer) {
+        var isLong = false;
+        if (capAnswer && capAnswer.offsetHeight > 72) {
+          isLong = true;
+        } else {
+          var textLen = (answer || '').trim().length;
+          var wordCount = (answer || '').trim().split(/\s+/).filter(Boolean).length;
+          var newlines = ((answer || '').match(/\n/g) || []).length;
+          if (newlines >= 2 || textLen > 150 || wordCount > 24) {
+            isLong = true;
+          }
+        }
+
+        if (isLong) {
+          bubbleArea.classList.add('shift-up-long');
+        } else {
+          bubbleArea.classList.add('shift-up-short');
+        }
+      }
+    }
+
+    /* No speech detected — show friendly error then reset */
+    function showNoSpeech() {
+      clearAuto();
+      clearShift();
+      setPill('nospeech', 'Missed');
+      setBubble('nospeech');
+      showWaves(false);
+      showThinkOrbit(false);
+      bubbleWrap.style.display = '';
+      pill.style.display = '';
+      micIcon.innerHTML = '&#x1F614;'; /* sad face emoji */
+      showHints(false);
+      showCaption('', "Sorry, I couldn't catch that.", 'Please speak a little louder or try again.');
+
+      autoTimer = setTimeout(function () {
+        showWelcome();
+      }, 4000);
+    }
+  </script>
+</body>
+
+</html>

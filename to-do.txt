@@ -1,10 +1,1 @@
-
-
-
-common words recognization samples
-
-
-
-change our whole tablet view colour to theese two background and text colour text colour is : #0F331F and background is : #DEEB9C
-
-
+common words recognization samples like leppavara laurea tikurilla
