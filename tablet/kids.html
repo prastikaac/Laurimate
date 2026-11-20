@@ -104,9 +104,9 @@
       padding: 12px 18px;
     }
 
-    /* Left & Right Touch Button Grids (2x3 buttons each = 12 Best Actions) */
+    /* Left & Right Touch Button Grids (3x4 buttons each = 24 Top Controls) */
     .side-grid {
-      width: 244px;
+      width: 312px;
       display: -webkit-flex;
       display: flex;
       -webkit-flex-wrap: wrap;
@@ -118,13 +118,13 @@
     }
 
     .touch-btn {
-      width: 116px;
-      height: 112px;
-      margin-bottom: 12px;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.93);
-      border: 4px solid #FDE047;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+      width: 98px;
+      height: 96px;
+      margin-bottom: 10px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 3.5px solid #FDE047;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.26);
       display: -webkit-flex;
       display: flex;
       -webkit-flex-direction: column;
@@ -146,25 +146,52 @@
       border-color: #FF4B72;
     }
 
+    /* Most Highlighted Hero Button: TAKE PHOTO */
+    .touch-btn.photo-hero {
+      background: #FF1E56;
+      background: -webkit-linear-gradient(135deg, #FF1E56 0%, #FF7B00 100%);
+      background: linear-gradient(135deg, #FF1E56 0%, #FF7B00 100%);
+      border: 4.5px solid #FFFF00;
+      box-shadow: 0 0 22px rgba(255, 255, 0, 0.95), 0 8px 20px rgba(255, 30, 86, 0.65);
+      -webkit-animation: photoHeroPulse 0.95s ease-in-out infinite alternate;
+      animation: photoHeroPulse 0.95s ease-in-out infinite alternate;
+    }
+
+    .touch-btn.photo-hero .btn-label {
+      color: #FFFFFF;
+      font-size: 13px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+      letter-spacing: 0.5px;
+    }
+
+    @-webkit-keyframes photoHeroPulse {
+      0%   { -webkit-transform: scale(1); transform: scale(1); box-shadow: 0 0 16px rgba(255, 255, 0, 0.85), 0 6px 16px rgba(255, 30, 86, 0.55); }
+      100% { -webkit-transform: scale(1.07); transform: scale(1.07); box-shadow: 0 0 28px rgba(255, 255, 0, 1), 0 10px 24px rgba(255, 30, 86, 0.85); }
+    }
+    @keyframes photoHeroPulse {
+      0%   { transform: scale(1); box-shadow: 0 0 16px rgba(255, 255, 0, 0.85), 0 6px 16px rgba(255, 30, 86, 0.55); }
+      100% { transform: scale(1.07); box-shadow: 0 0 28px rgba(255, 255, 0, 1), 0 10px 24px rgba(255, 30, 86, 0.85); }
+    }
+
     .btn-icon {
-      width: 54px;
-      height: 54px;
+      width: 46px;
+      height: 46px;
       display: -webkit-flex;
       display: flex;
       -webkit-align-items: center;
       align-items: center;
       -webkit-justify-content: center;
       justify-content: center;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
     .btn-label {
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 800;
       color: #1E1B4B;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
-      line-height: 1.1;
+      letter-spacing: 0.2px;
+      line-height: 1.05;
       text-align: center;
     }
 
@@ -180,12 +207,12 @@
       align-items: center;
       -webkit-justify-content: center;
       justify-content: center;
-      padding: 0 8px;
+      padding: 0 6px;
     }
 
     .circle {
-      width: 215px;
-      height: 215px;
+      width: 196px;
+      height: 196px;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.94);
       border: 7px solid #FDE047;
@@ -244,7 +271,7 @@
       100% { transform: scale(1); }
     }
 
-    /* Captured Photo Frame */
+    /* Captured Photo Frame & Retake Controls */
     .photo-frame {
       display: none;
       background: #ffffff;
@@ -252,6 +279,7 @@
       border-radius: 22px;
       border: 6px solid #FDE047;
       box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+      text-align: center;
     }
 
     .photo-frame.visible {
@@ -260,11 +288,74 @@
 
     .photo-frame img {
       display: block;
-      width: 390px;
-      height: 290px;
+      width: 265px;
+      height: 192px;
       object-fit: cover;
       border-radius: 14px;
       background: #1E1B4B;
+      margin: 0 auto;
+    }
+
+    .photo-actions {
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: row;
+      flex-direction: row;
+      -webkit-justify-content: space-between;
+      justify-content: space-between;
+      -webkit-align-items: center;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .retake-btn {
+      flex: 1;
+      -webkit-flex: 1;
+      height: 46px;
+      margin-right: 6px;
+      border-radius: 14px;
+      background: #FF1E56;
+      background: -webkit-linear-gradient(135deg, #FF1E56 0%, #FF7B00 100%);
+      background: linear-gradient(135deg, #FF1E56 0%, #FF7B00 100%);
+      border: 3px solid #FFFF00;
+      color: #FFFFFF;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 14px rgba(255, 30, 86, 0.55);
+      cursor: pointer;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+    }
+
+    .retake-btn:active {
+      -webkit-transform: scale(0.93);
+      transform: scale(0.93);
+    }
+
+    .done-btn {
+      width: 78px;
+      height: 46px;
+      border-radius: 14px;
+      background: #1E1B4B;
+      border: 3px solid #38BDF8;
+      color: #FFFFFF;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .done-btn:active {
+      -webkit-transform: scale(0.93);
+      transform: scale(0.93);
     }
 
     .tap-star {
@@ -311,8 +402,12 @@
   <div class="kids-bg" id="bgEl"></div>
 
   <div class="screen">
-    <!-- LEFT 6 TOUCH BUTTONS (Best Crowd-Pleasers) -->
+    <!-- LEFT 12 TOUCH BUTTONS (3x4 Grid — Photo Hero #1, Sports, Dances & Stage Shows) -->
     <div class="side-grid">
+      <div class="touch-btn photo-hero" data-cls="touch-btn photo-hero" onclick="triggerRobot(this, 'p', 'c')">
+        <div class="btn-icon" id="btn-ic-p"></div>
+        <div class="btn-label">PHOTO!</div>
+      </div>
       <div class="touch-btn" onclick="triggerRobot(this, 'cr', 'soccer')">
         <div class="btn-icon" id="btn-ic-cr"></div>
         <div class="btn-label">SIUUUU!</div>
@@ -321,36 +416,60 @@
         <div class="btn-icon" id="btn-ic-lm"></div>
         <div class="btn-label">MESSI</div>
       </div>
-      <div class="touch-btn" onclick="triggerRobot(this, 'p', 'c')">
-        <div class="btn-icon" id="btn-ic-p"></div>
-        <div class="btn-label">PHOTO</div>
-      </div>
       <div class="touch-btn" onclick="triggerRobot(this, '2', '2')">
         <div class="btn-icon" id="btn-ic-2"></div>
-        <div class="btn-label">DANCE</div>
+        <div class="btn-label">DISCO</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'g', '2')">
+        <div class="btn-icon" id="btn-ic-g"></div>
+        <div class="btn-label">FREEZE</div>
       </div>
       <div class="touch-btn" onclick="triggerRobot(this, '3', '3')">
         <div class="btn-icon" id="btn-ic-3"></div>
         <div class="btn-label">GUITAR</div>
       </div>
-      <div class="touch-btn" onclick="triggerRobot(this, '4', '4')">
-        <div class="btn-icon" id="btn-ic-4"></div>
-        <div class="btn-label">KUNG FU</div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'd', '8')">
+        <div class="btn-icon" id="btn-ic-d"></div>
+        <div class="btn-label">R2-D2 BOT</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, '7', '7')">
+        <div class="btn-icon" id="btn-ic-7"></div>
+        <div class="btn-label">WORKOUT</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, '8', '8')">
+        <div class="btn-icon" id="btn-ic-8"></div>
+        <div class="btn-label">MAGIC</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, '6', '6')">
+        <div class="btn-icon" id="btn-ic-6"></div>
+        <div class="btn-label">ROCKET</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'b', 'bday')">
+        <div class="btn-icon" id="btn-ic-b"></div>
+        <div class="btn-label">BIRTHDAY</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'c', 'car')">
+        <div class="btn-icon" id="btn-ic-car"></div>
+        <div class="btn-label">RACE CAR</div>
       </div>
     </div>
 
-    <!-- CENTER STAGE (Animated Character or Captured Photo) -->
+    <!-- CENTER STAGE (Animated Character or Captured Photo with Retake Button) -->
     <div class="center-stage">
       <div class="circle" id="circleEl" onclick="onAvatarTap(event)">
         <div id="iconEl"></div>
       </div>
 
-      <div class="photo-frame" id="photoFrameEl" onclick="setCommand('0')">
+      <div class="photo-frame" id="photoFrameEl">
         <img id="photoImgEl" src="" alt="" />
+        <div class="photo-actions">
+          <button class="retake-btn" onclick="retakePhoto(event)">&#128247; RETAKE PHOTO</button>
+          <button class="done-btn" onclick="closePhoto(event)">BACK</button>
+        </div>
       </div>
     </div>
 
-    <!-- RIGHT 6 TOUCH BUTTONS (Interactive Handshake, Games & Animals) -->
+    <!-- RIGHT 12 TOUCH BUTTONS (3x4 Grid — Kid Interactions, Stage Moves & Animals) -->
     <div class="side-grid">
       <div class="touch-btn" onclick="triggerRobot(this, 'hs', '1')">
         <div class="btn-icon" id="btn-ic-hs"></div>
@@ -360,21 +479,45 @@
         <div class="btn-icon" id="btn-ic-hf"></div>
         <div class="btn-label">HIGH FIVE</div>
       </div>
-      <div class="touch-btn" onclick="triggerRobot(this, 'fb', '6')">
-        <div class="btn-icon" id="btn-ic-fb"></div>
-        <div class="btn-label">FIST BUMP</div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'wf', '1')">
+        <div class="btn-icon" id="btn-ic-wf"></div>
+        <div class="btn-label">WALK &amp; HI</div>
       </div>
-      <div class="touch-btn" onclick="triggerRobot(this, 'rps', 'win')">
-        <div class="btn-icon" id="btn-ic-rps"></div>
-        <div class="btn-label">R - P - S</div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'l', 'l')">
+        <div class="btn-icon" id="btn-ic-l"></div>
+        <div class="btn-label">BIG HUG</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'hsk', '2')">
+        <div class="btn-icon" id="btn-ic-hsk"></div>
+        <div class="btn-label">CLAP SONG</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'wr', '2')">
+        <div class="btn-icon" id="btn-ic-wr"></div>
+        <div class="btn-label">360 SPIN</div>
       </div>
       <div class="touch-btn" onclick="triggerRobot(this, 'fa', 'cow')">
         <div class="btn-icon" id="btn-ic-fa"></div>
-        <div class="btn-label">FARM</div>
+        <div class="btn-label">FARM SHOW</div>
       </div>
       <div class="touch-btn" onclick="triggerRobot(this, 'a', 'lion')">
         <div class="btn-icon" id="btn-ic-a"></div>
-        <div class="btn-label">SAFARI</div>
+        <div class="btn-label">ZOO SAFARI</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'di', 'dino')">
+        <div class="btn-icon" id="btn-ic-di"></div>
+        <div class="btn-label">T-REX</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'li', 'lion')">
+        <div class="btn-icon" id="btn-ic-li"></div>
+        <div class="btn-label">LION ROAR</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'e', 'ele')">
+        <div class="btn-icon" id="btn-ic-e"></div>
+        <div class="btn-label">ELEPHANT</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'do', 'dog')">
+        <div class="btn-icon" id="btn-ic-do"></div>
+        <div class="btn-label">PUPPY</div>
       </div>
     </div>
   </div>
@@ -502,24 +645,36 @@
       "pig":     { bg: makeKidsBg("#DB2777", "#FBCFE8", "#4ADE80", "#16A34A", "hearts"),  dance: true }
     };
 
-    // Populate the 12 touch button icons
+    // Populate the 24 touch button icons
     var BTN_MAP = {
+      "btn-ic-p":   "c",
       "btn-ic-cr":  "soccer",
       "btn-ic-lm":  "win",
-      "btn-ic-p":   "c",
       "btn-ic-2":   "2",
+      "btn-ic-g":   "surp",
       "btn-ic-3":   "3",
-      "btn-ic-4":   "4",
+      "btn-ic-d":   "0",
+      "btn-ic-7":   "7",
+      "btn-ic-8":   "8",
+      "btn-ic-6":   "6",
+      "btn-ic-b":   "bday",
+      "btn-ic-car": "car",
       "btn-ic-hs":  "1",
       "btn-ic-hf":  "hand",
-      "btn-ic-fb":  "6",
-      "btn-ic-rps": "7",
+      "btn-ic-wf":  "0",
+      "btn-ic-l":   "l",
+      "btn-ic-hsk": "2",
+      "btn-ic-wr":  "7",
       "btn-ic-fa":  "cow",
-      "btn-ic-a":   "lion"
+      "btn-ic-a":   "lion",
+      "btn-ic-di":  "dino",
+      "btn-ic-li":  "lion",
+      "btn-ic-e":   "ele",
+      "btn-ic-do":  "dog"
     };
     for (var bid in BTN_MAP) {
       var bel = document.getElementById(bid);
-      if (bel) bel.innerHTML = makeIcon(RAW_SVGS[BTN_MAP[bid]], 52);
+      if (bel) bel.innerHTML = makeIcon(RAW_SVGS[BTN_MAP[bid]], bid === "btn-ic-p" ? 50 : 44);
     }
 
     var ICON_KEYS = ["0", "2", "cow", "lion", "dog", "soccer", "3", "4"];
@@ -529,8 +684,9 @@
     // Sends touch command directly to Pepper's local Python HTTP server on 198.18.0.1:8765
     function triggerRobot(btnEl, cmdCode, previewScene) {
       if (btnEl) {
-        btnEl.className = "touch-btn active-press";
-        setTimeout(function() { btnEl.className = "touch-btn"; }, 350);
+        var baseCls = btnEl.getAttribute("data-cls") || "touch-btn";
+        btnEl.className = baseCls + " active-press";
+        setTimeout(function() { btnEl.className = baseCls; }, 350);
       }
       if (previewScene) {
         setCommand(previewScene);
@@ -540,6 +696,16 @@
         xhr.open("GET", "http://198.18.0.1:8765/cmd?c=" + encodeURIComponent(cmdCode) + "&t=" + new Date().getTime(), true);
         xhr.send(null);
       } catch (e) {}
+    }
+
+    function retakePhoto(e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      triggerRobot(null, "p", "c");
+    }
+
+    function closePhoto(e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      setCommand("0");
     }
 
     function onScreenTap(e) {
@@ -562,8 +728,6 @@
       tapIdx = (tapIdx + 1) % ICON_KEYS.length;
       var k = ICON_KEYS[tapIdx];
       document.getElementById("iconEl").innerHTML = makeIcon(RAW_SVGS[k] || RAW_SVGS["0"], 135);
-      // Also trigger a quick giggle/laugh or happy reaction when center face is tapped!
-      triggerRobot(null, "9", "9");
       setTimeout(function() {
         circle.className = "circle dancing";
       }, 460);

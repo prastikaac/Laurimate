@@ -36,7 +36,7 @@ try:
 except NameError:
     raw_input = input
 
-PEPPER_IP        = "192.168.0.118"
+PEPPER_IP        = "127.0.0.1" if os.path.exists("/home/nao") else "192.168.0.118"
 REMOTE_SSH_IP    = "192.168.0.118"
 REMOTE_USER      = "nao"
 REMOTE_PASS      = "Dll#2025"
@@ -49,10 +49,15 @@ STATE_PATHS = [
     "/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7/kids_state.json",
     "/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7/html/kids_state.json"
 ]
-WEBVIEW_FLAG = "/tmp/laurimate_kids_webview_v5.flag"
+WEBVIEW_FLAG = "/tmp/laurimate_kids_webview_v6.flag"
 
 # Built-in real song & sound effect files on Pepper
-SONG_DANCE_MP3   = "/home/nao/.local/share/PackageManager/apps/laureaevent-9b7fba/behavior_1/swiftswords_ext.mp3"
+SONG_TAICHI_MP3  = "/home/nao/.local/share/PackageManager/apps/laureaevent-9b7fba/behavior_1/swiftswords_ext.mp3"
+SONG_DANCE_MP3   = "/tmp/kids_edm_festival_v2.wav"
+SONG_EDM_WAV     = "/tmp/kids_edm_festival_v2.wav"
+SONG_FUNK_WAV    = "/tmp/kids_electro_funk_v2.wav"
+SONG_HYPER_WAV   = "/tmp/kids_hyper_arcade_v2.wav"
+ENERGETIC_DANCE_SONGS = [SONG_EDM_WAV, SONG_FUNK_WAV, SONG_HYPER_WAV]
 SONG_UPBEAT_OGG  = "/home/nao/.local/share/PackageManager/apps/boot-config/sounds/wait_music_update.ogg"
 SONG_GUITAR_OGG  = "/home/nao/.local/share/PackageManager/apps/animations/Stand/Waiting/AirGuitar_1/heavyMetal1.ogg"
 SONG_BDAY_OGG    = "/home/nao/.local/share/PackageManager/apps/animations/Stand/Waiting/HappyBirthday_1/happy_birthday_en.ogg"
@@ -68,17 +73,6 @@ SFX_SNIFF_OGG    = "/home/nao/.local/share/PackageManager/apps/animations/Stand/
 SFX_R2D2_OGG     = "/home/nao/.local/share/PackageManager/apps/animations/Stand/Waiting/Robot_1/r2d2.ogg"
 SFX_MAGIC_OGG    = "/home/nao/.local/share/PackageManager/apps/animations/Stand/Waiting/MysticalPower_1/heaven1.ogg"
 SFX_APPLAUSE_OGG = "/home/nao/.local/share/PackageManager/apps/animations/Stand/Emotions/Positive/Winner_1/applause1.ogg"
-SFX_LAUGH_OGG    = "/home/nao/.local/share/PackageManager/apps/animations/Stand/Emotions/Positive/Laugh_1/ptdr3.ogg"
-
-KIDS_JOKES = [
-    "Why did the robot go back to school? Because its skills were getting a little rusty!",
-    "What do you call a dinosaur that is sleeping? A dino-snore!",
-    "Why do bees have sticky hair? Because they use honeycombs!",
-    "What is a robot's favorite type of music? Heavy metal!",
-    "Why did the cookie go to the hospital? Because it felt crummy!",
-    "What do you call a bear with no teeth? A gummy bear!",
-    "Why can't Elsa from Frozen have a balloon? Because she will let it go!"
-]
 
 
 def _write_state_json(cmd_num):
@@ -96,45 +90,139 @@ def _write_state_json(cmd_num):
             pass
 
 
-def _ensure_dance_song_wav():
-    """Generates a loud, catchy 10-second kids dance song WAV with bass + drums + melody."""
-    path = "/tmp/kids_party_song.wav"
+def _build_energetic_track_wav(path, step_dur, pattern_steps, repeats=3):
+    """
+    Synthesizes a high-energy EDM/Electro dance track with:
+      - Punchy 4-on-the-floor kick drum on every beat (step % 4 == 0)
+      - Crisp electronic clap/snare on beats 2 & 4 (step % 8 == 4)
+      - Off-beat metallic hi-hat on every eighth offbeat (step % 4 == 2)
+      - Pumping sidechained octave synth bass + bright multi-oscillator supersaw lead & chord stab
+    """
     if os.path.exists(path):
         return path
     try:
         rate = 22050
-        # Catchy upbeat children's party melody (freq, duration_sec)
-        notes = [
-            (523, 0.22), (523, 0.22), (784, 0.22), (784, 0.22),
-            (880, 0.22), (880, 0.22), (784, 0.44),
-            (698, 0.22), (698, 0.22), (659, 0.22), (659, 0.22),
-            (587, 0.22), (587, 0.22), (523, 0.44),
-            (784, 0.22), (784, 0.22), (698, 0.22), (698, 0.22),
-            (659, 0.22), (659, 0.22), (587, 0.44),
-            (523, 0.22), (659, 0.22), (784, 0.22), (1046, 0.44)
-        ]
+        loop_frames = []
+        pi2 = 2.0 * math.pi
+        for step_idx, (lead_f, chord_f, bass_f) in enumerate(pattern_steps):
+            n_samples = int(rate * step_dur)
+            is_kick = (step_idx % 4 == 0)
+            is_snare = (step_idx % 8 == 4)
+            is_hat = (step_idx % 4 == 2)
+            for i in range(n_samples):
+                t = float(i) / rate
+                u = float(i) / float(max(1, n_samples))
+                note_env = min(1.0, (1.0 - u) * 3.2) if lead_f > 0 else 0.0
+
+                # Bright supersaw/pulse lead + harmony chord stab
+                lead = 0.0
+                if lead_f > 0:
+                    s1 = math.sin(pi2 * lead_f * t)
+                    s2 = 0.55 * math.sin(pi2 * (lead_f * 2.0) * t)
+                    s3 = 0.35 * (1.0 if math.sin(pi2 * (lead_f * 1.004) * t) >= 0 else -1.0)
+                    c1 = 0.40 * math.sin(pi2 * chord_f * t) if chord_f > 0 else 0.0
+                    lead = note_env * (s1 + s2 + s3 + c1)
+
+                # Pumping octave square/sub bassline
+                bass = 0.0
+                if bass_f > 0:
+                    b_env = min(1.0, u * 4.5) * (1.0 - 0.35 * u)
+                    b_sq = 1.0 if math.sin(pi2 * bass_f * t) >= 0 else -1.0
+                    b_sub = math.sin(pi2 * (bass_f * 0.5) * t)
+                    bass = b_env * (0.55 * b_sq + 0.50 * b_sub)
+
+                # 4-on-the-floor punchy EDM kick drum
+                kick = 0.0
+                if is_kick and t < 0.095:
+                    k_u = t / 0.095
+                    k_f = 175.0 - 125.0 * (k_u ** 0.45)
+                    kick = (1.0 - k_u) * 1.35 * math.sin(pi2 * k_f * t)
+
+                # Crisp clap/snare on beats 2 & 4
+                snare = 0.0
+                if is_snare and t < 0.085:
+                    s_u = t / 0.085
+                    noise = math.sin(pi2 * 3417.0 * t) * math.cos(pi2 * 5119.0 * t) + 0.6 * math.sin(pi2 * 7331.0 * t)
+                    body = math.sin(pi2 * (230.0 - 90.0 * s_u) * t)
+                    snare = (1.0 - s_u) * (0.75 * noise + 0.55 * body)
+
+                # Off-beat hi-hat shimmer
+                hat = 0.0
+                if is_hat and t < 0.055:
+                    h_u = t / 0.055
+                    hat = (1.0 - h_u) * 0.50 * (
+                        math.sin(pi2 * 6143.0 * t) + math.sin(pi2 * 8291.0 * t) * math.cos(pi2 * 4177.0 * t)
+                    )
+
+                val = int(9600 * (lead + bass + kick + snare + hat))
+                loop_frames.append(struct.pack("<h", max(-32000, min(32000, val))))
+
+        loop_bytes = "".join(loop_frames)
         wf = wave.open(path, "wb")
         wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(rate)
-        frames = []
-        for idx, (freq, dur) in enumerate(notes):
-            n_samples = int(rate * dur)
-            bass_freq = freq * 0.5
-            for i in range(n_samples):
-                t = float(i) / rate
-                env = min(1.0, (n_samples - i) / float(max(1, int(rate * 0.025))))
-                # Lead synth + octave harmonic + punchy bass + kick drum on beat start
-                lead = math.sin(2.0 * math.pi * freq * t) + 0.4 * math.sin(2.0 * math.pi * freq * 2.0 * t)
-                bass = 0.45 * (1.0 if math.sin(2.0 * math.pi * bass_freq * t) >= 0 else -1.0)
-                kick = 0.6 * math.sin(2.0 * math.pi * (140.0 - 90.0 * (t / dur)) * t) if t < 0.06 else 0.0
-                val = int(12500 * env * (lead + bass + kick))
-                frames.append(struct.pack("<h", max(-32000, min(32000, val))))
-        wf.writeframes("".join(frames))
+        wf.writeframes(loop_bytes * repeats)
         wf.close()
     except Exception:
         pass
     return path
+
+
+def _ensure_dance_song_wav():
+    """Generates 3 loud, high-energy EDM / Electro-Funk / Hyper-Arcade dance songs on Pepper."""
+    # Track 1: 138 BPM Festival EDM Eurodance Anthem (A minor / C major high-energy hook)
+    edm_steps = [
+        # Bar 1: Driving A-minor festival supersaw riff
+        (440, 659, 110), (440, 0,   110), (523, 659, 220), (440, 0,   110),
+        (587, 880, 110), (523, 659, 110), (440, 0,   220), (392, 587, 110),
+        (349, 523,  87), (349, 0,    87), (440, 659, 175), (523, 698,  87),
+        (587, 880,  98), (523, 784,  98), (494, 740, 196), (392, 587,  98),
+        # Bar 2: High octave energy drop
+        (880, 523, 110), (0,   0,   220), (880, 523, 220), (784, 494, 110),
+        (659, 440, 110), (587, 392, 220), (523, 330, 220), (659, 440, 110),
+        (587, 392,  87), (587, 0,   175), (659, 440, 175), (784, 523,  87),
+        (880, 587,  98), (784, 523, 196), (988, 659, 196), (880, 523, 110)
+    ]
+    _build_energetic_track_wav(SONG_EDM_WAV, 0.11, edm_steps, repeats=3)
+
+    # Track 2: 134 BPM Electro-Funk Party Boogie (Bouncy major-key synth brass + slap octave bass)
+    funk_steps = [
+        # Bar 1: Funky C-major / G-major electro brass bounce
+        (523, 659, 131), (0,   0,   262), (659, 784, 262), (784, 988, 131),
+        (880, 523, 147), (784, 523, 294), (659, 440, 262), (523, 392, 131),
+        (587, 740, 147), (587, 0,   294), (659, 784, 294), (784, 988, 147),
+        (1046,659, 196), (880, 587, 392), (784, 523, 392), (659, 494, 196),
+        # Bar 2: Party synth drop
+        (1046,784, 131), (1046,784, 262), (880, 659, 262), (784, 523, 131),
+        (698, 523, 175), (784, 587, 349), (659, 523, 262), (523, 392, 131),
+        (587, 440, 147), (659, 494, 294), (698, 523, 294), (784, 587, 196),
+        (880, 659, 196), (988, 740, 392), (1046,784, 262), (1046,523, 131)
+    ]
+    _build_energetic_track_wav(SONG_FUNK_WAV, 0.112, funk_steps, repeats=3)
+
+    # Track 3: 142 BPM Hyper Arcade Turbo Dance (Fast arpeggiated rave synth + heavy kick)
+    hyper_steps = [
+        (659, 988, 165), (784, 0,   165), (988, 659, 330), (1318,784, 165),
+        (1175,740, 147), (988, 587, 294), (784, 494, 294), (659, 440, 147),
+        (523, 784, 131), (659, 0,   131), (784, 523, 262), (1046,659, 131),
+        (988, 587, 147), (784, 494, 294), (1175,740, 294), (988, 587, 147),
+        (659, 988, 165), (988, 659, 330), (1318,988, 330), (1175,784, 165),
+        (1046,659, 131), (988, 587, 262), (880, 523, 262), (784, 494, 131),
+        (698, 880, 175), (880, 523, 349), (1046,698, 349), (1175,784, 196),
+        (1318,988, 165), (1175,784, 330), (1318,988, 330), (1318,659, 165)
+    ]
+    _build_energetic_track_wav(SONG_HYPER_WAV, 0.105, hyper_steps, repeats=3)
+
+    # Ensure /tmp/kids_party_song.wav also points to the energetic EDM track
+    party_legacy = "/tmp/kids_party_song.wav"
+    try:
+        import shutil
+        if os.path.exists(SONG_EDM_WAV):
+            shutil.copyfile(SONG_EDM_WAV, party_legacy)
+    except Exception:
+        pass
+    return SONG_EDM_WAV
 
 
 def _ensure_animal_sound_wavs():
@@ -524,10 +612,12 @@ class KidsEntertainer(object):
             return
         try:
             if force or not os.path.exists(WEBVIEW_FLAG):
-                url = "{}?v={}".format(KIDS_TABLET_URL, int(time.time()))
-                self.tablet.showWebview(url)
                 with open(WEBVIEW_FLAG, "w") as f:
                     f.write(str(int(time.time())))
+                # Pause pepper_main.py while Kids Fun mode is active
+                os.system("pkill -f '[p]epper_main.py' >/dev/null 2>&1")
+                url = "{}?v={}".format(KIDS_TABLET_URL, int(time.time()))
+                self.tablet.showWebview(url)
                 time.sleep(0.55)
         except Exception:
             pass
@@ -759,13 +849,15 @@ class KidsEntertainer(object):
         self.reset_leds()
 
     def cmd_2_disco_dance(self):
-        """2: Short 'Let's dance!' + Immediate Song & Dance Party (+ Small Stage Roll)!"""
+        """2: Short 'Let's dance!' + Immediate High-Energy EDM/Funk Song & Dance Party (+ Small Stage Roll)!"""
         self.set_tablet_command(2)
         self.disco_leds(12.0)
         self.say("Let's dance!")
-        self.start_song(SONG_DANCE_MP3)
+        song = random.choice(ENERGETIC_DANCE_SONGS)
+        self.start_song(song)
         self.run_anim("animations/Stand/Waiting/FunnyDancer_1")
         self.dance_wave_boogie(cycles=3, with_stage_roll=True)
+        self.dance_robot_pop()
         self.stop_all_songs()
         self.start_song(SFX_APPLAUSE_OGG)
         self.run_anim("animations/Stand/Emotions/Positive/Winner_1")
@@ -899,10 +991,10 @@ class KidsEntertainer(object):
         self.reset_leds()
 
     def cmd_4_kungfu_knight(self):
-        """4: No speech — immediate Kung Fu & Sword Dance with music."""
+        """4: No speech — immediate Kung Fu & Sword Dance with energetic hyper beat."""
         self.set_tablet_command(4)
         self.set_eye_color(0xFF8800)
-        self.start_song(SONG_DANCE_MP3)
+        self.start_song(SONG_HYPER_WAV)
         self.run_anim("animations/Stand/Waiting/KungFu_1")
         self.set_eye_color(0xFFD700)
         self.run_anim("animations/Stand/Waiting/Knight_1")
@@ -930,10 +1022,10 @@ class KidsEntertainer(object):
         self.reset_leds()
 
     def cmd_7_penguin_workout_dance(self):
-        """7: No speech — immediate Party Song + Penguin Waddle (+ Stage Step) & Robot Dance."""
+        """7: No speech — immediate Electro-Funk Song + Penguin Waddle (+ Stage Step) & Robot Dance."""
         self.set_tablet_command(7)
         self.disco_leds(9.0)
-        self.start_song("/tmp/kids_party_song.wav")
+        self.start_song(SONG_FUNK_WAV)
         self.stage_move(0.18, 0.0, 0.0, async_move=True)
         self.run_anim("animations/Stand/Waiting/Waddle_1")
         self.stage_move(-0.18, 0.0, 0.0, async_move=True)
@@ -952,16 +1044,6 @@ class KidsEntertainer(object):
         self.start_song(SFX_R2D2_OGG)
         self.run_anim("animations/Stand/Waiting/MysticalPower_1")
         self.stop_all_songs()
-        self.reset_leds()
-
-    def cmd_9_joke_and_laugh(self):
-        """9: Short Joke + Real Hysterical Robot Laugh."""
-        self.set_tablet_command(9)
-        self.set_eye_color(0x00FFCC)
-        joke = random.choice(KIDS_JOKES)
-        self.say_animated("^start(animations/Stand/Gestures/Explain_1) " + joke)
-        self.disco_leds(4.0)
-        self.run_anim("animations/Stand/Emotions/Positive/Laugh_1")
         self.reset_leds()
 
     def cmd_p_photo(self):
@@ -1083,11 +1165,11 @@ class KidsEntertainer(object):
                 pass
 
     def cmd_g_freeze_dance_game(self):
-        """g: Fast Freeze Dance ('Dance!' -> Song & Dance -> 'Freeze!')."""
+        """g: Fast Freeze Dance ('Dance!' -> Energetic EDM & Dance -> 'Freeze!')."""
         self.set_tablet_command(2)
         self.disco_leds(8.0)
         self.say("Let's dance!")
-        self.start_song("/tmp/kids_party_song.wav")
+        self.start_song(SONG_EDM_WAV)
         self.dance_wave_boogie(cycles=2)
         self.stop_all_songs()
 
@@ -1096,7 +1178,7 @@ class KidsEntertainer(object):
         time.sleep(2.2)
 
         self.disco_leds(5.0)
-        self.start_song(SONG_DANCE_MP3)
+        self.start_song(SONG_HYPER_WAV)
         self.dance_robot_pop()
         self.stop_all_songs()
 
@@ -1460,7 +1542,7 @@ class KidsEntertainer(object):
         """t: Traditional Tai Chi Chuan Chinese Martial Arts Dance with Music!"""
         self.set_tablet_command(4)
         self.disco_leds(14.0)
-        self.start_song(SONG_DANCE_MP3)
+        self.start_song(SONG_TAICHI_MP3)
         try:
             rad = math.pi / 180.0
             names = ["HipPitch", "KneePitch", "HeadYaw", "HeadPitch", "LShoulderPitch", "LShoulderRoll", "LElbowRoll", "RShoulderPitch", "RShoulderRoll", "RElbowRoll"]
@@ -1931,11 +2013,13 @@ class KidsEntertainer(object):
         self.reset_leds()
 
     def cmd_f_fitness_workout(self):
-        """f: Gym Fitness Workout & Super Muscles."""
+        """f: Gym Fitness Workout & Super Muscles with energetic music."""
         self.set_tablet_command(7)
         self.disco_leds(7.0)
+        self.start_song(SONG_HYPER_WAV)
         self.run_anim("animations/Stand/Waiting/Fitness_1")
         self.run_anim("animations/Stand/Waiting/Fitness_2")
+        self.stop_all_songs()
         self.run_anim("animations/Stand/Waiting/ShowMuscles_1")
         self.reset_leds()
 
@@ -1995,8 +2079,6 @@ class KidsEntertainer(object):
         time.sleep(0.5)
         self.cmd_2_disco_dance()
         time.sleep(0.5)
-        self.cmd_9_joke_and_laugh()
-        time.sleep(0.5)
         self.cmd_p_photo()
 
     def say_custom(self, text):
@@ -2009,7 +2091,7 @@ class KidsEntertainer(object):
     # Physical Tactile Sensor Interactive Loop (Head & Hands Touch!)
     # --------------------------------------------------------------
     def start_touch_listener(self):
-        """When kids touch Pepper's head or hands, Pepper speaks, giggles, and dances!"""
+        """When kids touch Pepper's head or hands, Pepper reacts and dances!"""
         if not self.memory:
             return
 
@@ -2033,7 +2115,7 @@ class KidsEntertainer(object):
                             print("\n[Interactive Touch] Kid touched Pepper's {}!".format(kind))
                             self.disco_leds(3.0)
                             if kind == "head":
-                                self.run_anim("animations/Stand/Emotions/Positive/Laugh_1")
+                                self.run_anim("animations/Stand/Emotions/Positive/Happy_4")
                             elif kind == "rhand":
                                 self.start_song("/tmp/kids_party_song.wav")
                                 self.dance_wave_boogie(cycles=1)
@@ -2114,7 +2196,6 @@ class KidsEntertainer(object):
             elif k == "6":              self.cmd_6_helicopter_spaceship()
             elif k == "7":              self.cmd_7_penguin_workout_dance()
             elif k == "8":              self.cmd_8_magic_light_show()
-            elif k == "9":              self.cmd_9_joke_and_laugh()
             elif k in ("p", "photo", "pic", "picture"): self.cmd_p_photo()
             elif k in ("g", "freeze", "game"):          self.cmd_g_freeze_dance_game()
             elif k in ("l", "hug", "love"):             self.cmd_l_hug_and_song()
@@ -2215,20 +2296,26 @@ def print_menu():
     print("\n======================================================================================")
     print("             LAURIMATE LIVE KIDS CONTROLLER (ALL CONTROLS — BEST ON TOP)              ")
     print("======================================================================================")
+    print("  *** #1 FEATURED SHOWSTOPPER: KIDS PHOTO BOOTH (WITH RETAKE ON TABLET) ***")
+    print("  >>> [p]  TAKE KIDS PICTURE & SHOW ON TABLET (WITH RETAKE PHOTO BUTTON!) <<<")
+    print("--------------------------------------------------------------------------------------")
     print("  *** TOP SHOWSTOPPERS & KIDS FAVORITES ***")
     print("  [cr] Ronaldo 'SIUUUUU!' Celebration   | [lm] Lionel Messi Two Hands Up & Look Sky")
-    print("  [p]  Take Kids Picture & Show Tablet  | [2]  Disco Dance Party (with Song + Move)")
+    print("  [2]  Energetic Disco Dance Party      | [g]  Musical Freeze Dance Game!")
     print("  [hs] Robot Handshake with a Kid       | [hf] Interactive High-Five (+ Ding FX)")
-    print("  [fb] Fist Bump + Fireworks Boom!      | [rps] Play Rock, Paper, Scissors Game!")
-    print("  [g]  Musical Freeze Dance Game!       | [hsk] Head, Shoulders, Knees & Clap Song")
+    print("  [wf] Walk Forward (+24cm), Wave & Hi  | [l]  Big Robot Hug & Flying Hearts")
+    print("  [hsk] Head, Shoulders, Knees & Clap   | [wr] 360-Degree Disco Spin in Place")
+    print("  [3]  Electric Air Guitar Rock Song    | [d]  Classic R2-D2 Robot Walk & Pop Dance")
+    print("  [7]  Penguin Waddle & Workout Dance   | [8]  Magic Rainbow Eyes & R2-D2 Sounds")
+    print("  [6]  Helicopter & Space Rocket Launch | [b]  Happy Birthday Song & Dance")
+    print("  [c]  Race Car Driver (Engine & Crash) | [di] Giant T-Rex Dinosaur (Stomp/Roar)")
     print("  [fa] OLD MACDONALD FARM ANIMALS SHOW! | [a]  MEGA WILD ZOO SAFARI ANIMALS SHOW!")
     print("  [1]  Welcome Wave & Peek-a-Boo        | [s]  RUN FULL AUTO MINI-SHOW!")
     print("--------------------------------------------------------------------------------------")
     print("  *** TURN LEFT/RIGHT & STAGE WALKING ***")
     print("  [tl] Turn LEFT (~45 deg)              | [tr] Turn RIGHT (~45 deg)")
-    print("  [tc] Face Straight CENTER / Front     | [wf] Walk Forward (+24cm), Wave & Back")
-    print("  [wb] Step/Roll Backward (-24cm)       | [ws] Side-to-Side Stage Glide Dance")
-    print("  [wr] 360-Degree Disco Spin in Place   | [wp] Mini Stage Patrol & Wave Loop")
+    print("  [tc] Face Straight CENTER / Front     | [wb] Step/Roll Backward (-24cm)")
+    print("  [ws] Side-to-Side Stage Glide Dance   | [wp] Mini Stage Patrol & Wave Loop")
     print("--------------------------------------------------------------------------------------")
     print("  *** DOMESTIC, FARM & WILD ANIMALS (WITH SOUNDS & MOVES) ***")
     print("  [cw] Dairy Cow ('Moooooo!' + Horns)   | [do] Puppy Dog ('Woof! Woof!' + Tail Wag)")
@@ -2237,23 +2324,19 @@ def print_menu():
     print("  [ch] Chicken/Rooster (Cluck + Wings)  | [pg] Farm Piggy ('Oink! Oink!' + Wiggle)")
     print("  [e]  Giant Elephant (Trunk + Trumpet) | [o]  Chest-Beating Gorilla (+ Roar/Thump)")
     print("  [i]  Tiny Nibbling Mouse (+ Squeaks)  | [li] King Lion / Tiger (Roar + Claw Pounce)")
-    print("  [di] Giant T-Rex Dinosaur (Stomp/Roar)| [bi] Soaring Eagle Bird (Chirps + Wings)")
-    print("  [fr] Jumping Green Frog ('Ribbit!')   | [5]  Friendly Monster & Zombie Walk")
+    print("  [bi] Soaring Eagle Bird (Chirps+Wings)| [fr] Jumping Green Frog ('Ribbit!')")
+    print("  [5]  Friendly Monster & Zombie Walk   | [t]  Traditional Tai Chi Dance + Song")
     print("--------------------------------------------------------------------------------------")
-    print("  *** DANCES, MUSIC, SPORTS & COMEDY ACTIONS ***")
-    print("  [3]  Electric Air Guitar Rock Song    | [4]  Kung Fu Master & Sword Knight Dance")
-    print("  [t]  Traditional Tai Chi Dance + Song | [7]  Penguin Waddle & Robot Workout Song")
-    print("  [6]  Helicopter & Space Rocket Launch | [8]  Magic Rainbow Eyes & R2-D2 Sounds")
-    print("  [9]  Kids Joke & Real Robot Laugh     | [b]  Happy Birthday Song & Dance")
-    print("  [l]  Big Robot Hug & Flying Hearts    | [c]  Race Car Driver (Engine & Crash FX)")
+    print("  *** MORE COMEDY, SPORTS & ROBOT ACTIONS ***")
+    print("  [fb] Fist Bump + Fireworks Boom!      | [4]  Kung Fu Master & Sword Knight Dance")
     print("  [x]  Vacuum Cleaner Robot (+ Sound)   | [n]  Pro Golf Swing & Hole-in-One")
-    print("  [j]  Invisible Wall Mime & Bird Wings | [r]  Wet Puppy Body Shake & Light Dazzle")
-    print("  [d]  Classic R2-D2 Mechanical Robot   | [f]  Gym Fitness Workout & Super Muscles")
-    print("  [k]  Whistle & Orchestra Conductor    | [z]  Funny Robot Sneeze ('Achoo!')")
-    print("  [w]  Wake Up, Big Yawn & Stretch      | [y]  Cute Shy / Bashful Robot")
-    print("  [u]  Surprised / Shocked Robot        | [h]  Hungry Sniffing & Drink Soda")
-    print("  [v]  Victory Trophy & Crowd Applause  | [0]  Kids Visual Home Screen")
-    print("  [m]  Restore Main Campus Tablet UI    | [q]  Quit (or type ANY text to speak live!)")
+    print("  [j]  Invisible Wall Mime & Bird Wings | [r]  Wet Puppy Body Shake & Dazzle")
+    print("  [f]  Gym Fitness Workout & Muscles    | [k]  Whistle & Orchestra Conductor")
+    print("  [z]  Funny Robot Sneeze ('Achoo!')    | [w]  Wake Up, Big Yawn & Stretch")
+    print("  [y]  Cute Shy / Bashful Robot         | [u]  Surprised / Shocked Robot")
+    print("  [h]  Hungry Sniffing & Drink Soda     | [v]  Victory Trophy & Crowd Applause")
+    print("  [0]  Kids Visual Home Screen          | [m]  Restore Main Campus Tablet UI")
+    print("  [q]  Quit (or type ANY text to speak live!)")
     print("======================================================================================")
 
 
@@ -2286,7 +2369,7 @@ def _run_via_ssh_from_pc():
     remote_trigger("init")
 
     valid_cmds = (
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+        "0", "1", "2", "3", "4", "5", "6", "7", "8",
         "p", "photo", "pic", "picture", "g", "freeze", "game",
         "l", "hug", "love", "b", "birthday", "bday",
         "c", "car", "drive", "e", "elephant", "o", "gorilla",

@@ -35,6 +35,10 @@ import StringIO
 import Queue
 import subprocess
 
+for _p in ["/opt/aldebaran/lib/python2.7/site-packages", "/usr/lib/python2.7/site-packages"]:
+    if os.path.exists(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+
 from naoqi import ALProxy, ALModule, ALBroker
 
 # ------------------------------------------------------------------
@@ -55,7 +59,7 @@ def to_utf8(val):
 # ------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------
-PEPPER_IP         = "192.168.0.118"
+PEPPER_IP         = "127.0.0.1" if os.path.exists("/home/nao") else "192.168.0.118"
 PEPPER_PORT       = 9559
 TABLET_URL_BASE   = "http://198.18.0.1/apps/laurimate-1e47c7/index.html"
 FIREBASE_URL      = "https://chatwithgemini-wfqmz3bdja-uc.a.run.app"
@@ -1404,7 +1408,7 @@ def main():
     except Exception as e:
         print("[Laurimate] Speaking movement note: {}".format(e))
 
-    # 4. Tablet setup
+    # 4. Tablet setup (with cold-boot retry for Android chest tablet startup)
     tablet = None
     try:
         tablet = ALProxy("ALTabletService", PEPPER_IP, PEPPER_PORT)
@@ -1412,6 +1416,23 @@ def main():
         tablet.showWebview(url_with_cache_bust)
         print("[Laurimate] Tablet active: {}".format(url_with_cache_bust))
         set_welcome(tablet)
+
+        def _cold_boot_tablet_ensure():
+            for delay_s in (10.0, 20.0, 35.0):
+                time.sleep(delay_s)
+                if os.path.exists("/tmp/laurimate_kids_webview_v6.flag"):
+                    continue
+                try:
+                    t_url = "{}?t={}".format(TABLET_URL_BASE, int(time.time()))
+                    tablet.showWebview(t_url)
+                    time.sleep(1.0)
+                    set_welcome(tablet)
+                except Exception:
+                    pass
+
+        tb_thread = threading.Thread(target=_cold_boot_tablet_ensure)
+        tb_thread.daemon = True
+        tb_thread.start()
     except Exception as e:
         print("[Laurimate] Tablet note: {}".format(e))
 
