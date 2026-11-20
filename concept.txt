@@ -283,8 +283,6 @@ https://cloud.aldebaran-robotics.com/manage/robots/36257/ : login page for robot
 https://github.com/sunzhida/COMP4461_2017Fall_Lab4?tab=readme-ov-file : GitHub page for making the robot speak
 
 
-
-
 Upload the file to robot 
 open cmd and type : scp C:\Users\acer\Documents\Programming\Laurimate\pepper_main.py nao@192.168.0.118:/home/nao/Laurimate/
 scp pepper_main.py nao@192.168.0.118:/home/nao/Laurimate/  

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Laurimate Kids Fun</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Poppins:600,700,800');
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Poppins', 'Trebuchet MS', Arial, sans-serif;
+      background-color: #38BDF8;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .kids-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .kids-bg svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .float-slow {
+      -webkit-animation: floatHoriz 5.5s ease-in-out infinite alternate;
+      animation: floatHoriz 5.5s ease-in-out infinite alternate;
+    }
+
+    .float-updown {
+      -webkit-animation: floatVert 2.2s ease-in-out infinite alternate;
+      animation: floatVert 2.2s ease-in-out infinite alternate;
+    }
+
+    @-webkit-keyframes floatHoriz {
+      0%   { -webkit-transform: translateX(-10px); transform: translateX(-10px); }
+      100% { -webkit-transform: translateX(10px); transform: translateX(10px); }
+    }
+    @keyframes floatHoriz {
+      0%   { transform: translateX(-10px); }
+      100% { transform: translateX(10px); }
+    }
+
+    @-webkit-keyframes floatVert {
+      0%   { -webkit-transform: translateY(6px); transform: translateY(6px); }
+      100% { -webkit-transform: translateY(-10px); transform: translateY(-10px); }
+    }
+    @keyframes floatVert {
+      0%   { transform: translateY(6px); }
+      100% { transform: translateY(-10px); }
+    }
+
+    .eye-blink {
+      -webkit-transform-origin: center;
+      transform-origin: center;
+      -webkit-animation: blinkAnim 3.2s infinite;
+      animation: blinkAnim 3.2s infinite;
+    }
+    @-webkit-keyframes blinkAnim {
+      0%, 90%, 100% { -webkit-transform: scaleY(1); transform: scaleY(1); }
+      95% { -webkit-transform: scaleY(0.1); transform: scaleY(0.1); }
+    }
+    @keyframes blinkAnim {
+      0%, 90%, 100% { transform: scaleY(1); }
+      95% { transform: scaleY(0.1); }
+    }
+
+    /* Main 3-Column Widescreen Layout (Fits Pepper tablet with zero cropping) */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: row;
+      flex-direction: row;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: space-between;
+      justify-content: space-between;
+      padding: 12px 18px;
+    }
+
+    /* Left & Right Touch Button Grids (2x3 buttons each = 12 Best Actions) */
+    .side-grid {
+      width: 244px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-wrap: wrap;
+      flex-wrap: wrap;
+      -webkit-justify-content: space-between;
+      justify-content: space-between;
+      -webkit-align-content: center;
+      align-content: center;
+    }
+
+    .touch-btn {
+      width: 116px;
+      height: 112px;
+      margin-bottom: 12px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.93);
+      border: 4px solid #FDE047;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-transition: -webkit-transform 0.15s ease, background-color 0.15s ease;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .touch-btn:active,
+    .touch-btn.active-press {
+      -webkit-transform: scale(0.90);
+      transform: scale(0.90);
+      background: #FEF08A;
+      border-color: #FF4B72;
+    }
+
+    .btn-icon {
+      width: 54px;
+      height: 54px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .btn-label {
+      font-size: 14px;
+      font-weight: 800;
+      color: #1E1B4B;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      line-height: 1.1;
+      text-align: center;
+    }
+
+    /* Center Character / Photo Stage */
+    .center-stage {
+      flex: 1;
+      -webkit-flex: 1;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      padding: 0 8px;
+    }
+
+    .circle {
+      width: 215px;
+      height: 215px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.94);
+      border: 7px solid #FDE047;
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-animation: danceBounce 0.9s ease-in-out infinite alternate;
+      animation: danceBounce 0.9s ease-in-out infinite alternate;
+    }
+
+    .circle.dancing {
+      -webkit-animation: partyDance 0.55s ease-in-out infinite alternate;
+      animation: partyDance 0.55s ease-in-out infinite alternate;
+    }
+
+    .circle.tapped {
+      -webkit-animation: jigglePop 0.45s ease;
+      animation: jigglePop 0.45s ease;
+    }
+
+    @-webkit-keyframes danceBounce {
+      0%   { -webkit-transform: translateY(0) scale(1); transform: translateY(0) scale(1); }
+      100% { -webkit-transform: translateY(-12px) scale(1.05); transform: translateY(-12px) scale(1.05); }
+    }
+    @keyframes danceBounce {
+      0%   { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-12px) scale(1.05); }
+    }
+
+    @-webkit-keyframes partyDance {
+      0%   { -webkit-transform: rotate(-10deg) scale(1.02) translateY(0); transform: rotate(-10deg) scale(1.02) translateY(0); border-color: #FF4B72; }
+      50%  { border-color: #38BDF8; }
+      100% { -webkit-transform: rotate(10deg) scale(1.10) translateY(-12px); transform: rotate(10deg) scale(1.10) translateY(-12px); border-color: #FDE047; }
+    }
+    @keyframes partyDance {
+      0%   { transform: rotate(-10deg) scale(1.02) translateY(0); border-color: #FF4B72; }
+      50%  { border-color: #38BDF8; }
+      100% { transform: rotate(10deg) scale(1.10) translateY(-12px); border-color: #FDE047; }
+    }
+
+    @-webkit-keyframes jigglePop {
+      0%   { -webkit-transform: scale(1); transform: scale(1); }
+      35%  { -webkit-transform: scale(1.22) rotate(-14deg); transform: scale(1.22) rotate(-14deg); }
+      70%  { -webkit-transform: scale(1.18) rotate(14deg); transform: scale(1.18) rotate(14deg); }
+      100% { -webkit-transform: scale(1); transform: scale(1); }
+    }
+    @keyframes jigglePop {
+      0%   { transform: scale(1); }
+      35%  { transform: scale(1.22) rotate(-14deg); }
+      70%  { transform: scale(1.18) rotate(14deg); }
+      100% { transform: scale(1); }
+    }
+
+    /* Captured Photo Frame */
+    .photo-frame {
+      display: none;
+      background: #ffffff;
+      padding: 8px;
+      border-radius: 22px;
+      border: 6px solid #FDE047;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    }
+
+    .photo-frame.visible {
+      display: block;
+    }
+
+    .photo-frame img {
+      display: block;
+      width: 390px;
+      height: 290px;
+      object-fit: cover;
+      border-radius: 14px;
+      background: #1E1B4B;
+    }
+
+    .tap-star {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      margin-left: -20px;
+      margin-top: -20px;
+      pointer-events: none;
+      z-index: 50;
+      -webkit-animation: popFly 0.7s ease-out forwards;
+      animation: popFly 0.7s ease-out forwards;
+    }
+
+    @-webkit-keyframes popFly {
+      0%   { opacity: 1; -webkit-transform: scale(0.4) translateY(0); transform: scale(0.4) translateY(0); }
+      100% { opacity: 0; -webkit-transform: scale(1.7) translateY(-60px); transform: scale(1.7) translateY(-60px); }
+    }
+    @keyframes popFly {
+      0%   { opacity: 1; transform: scale(0.4) translateY(0); }
+      100% { opacity: 0; transform: scale(1.7) translateY(-60px); }
+    }
+
+    .flash-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      -webkit-transition: opacity 0.25s ease;
+      transition: opacity 0.25s ease;
+    }
+    .flash-overlay.active {
+      opacity: 0.95;
+    }
+  </style>
+</head>
+<body id="bodyEl" onclick="onScreenTap(event)">
+  <div class="flash-overlay" id="flashEl"></div>
+  <div class="kids-bg" id="bgEl"></div>
+
+  <div class="screen">
+    <!-- LEFT 6 TOUCH BUTTONS (Best Crowd-Pleasers) -->
+    <div class="side-grid">
+      <div class="touch-btn" onclick="triggerRobot(this, 'cr', 'soccer')">
+        <div class="btn-icon" id="btn-ic-cr"></div>
+        <div class="btn-label">SIUUUU!</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'lm', 'soccer')">
+        <div class="btn-icon" id="btn-ic-lm"></div>
+        <div class="btn-label">MESSI</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'p', 'c')">
+        <div class="btn-icon" id="btn-ic-p"></div>
+        <div class="btn-label">PHOTO</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, '2', '2')">
+        <div class="btn-icon" id="btn-ic-2"></div>
+        <div class="btn-label">DANCE</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, '3', '3')">
+        <div class="btn-icon" id="btn-ic-3"></div>
+        <div class="btn-label">GUITAR</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, '4', '4')">
+        <div class="btn-icon" id="btn-ic-4"></div>
+        <div class="btn-label">KUNG FU</div>
+      </div>
+    </div>
+
+    <!-- CENTER STAGE (Animated Character or Captured Photo) -->
+    <div class="center-stage">
+      <div class="circle" id="circleEl" onclick="onAvatarTap(event)">
+        <div id="iconEl"></div>
+      </div>
+
+      <div class="photo-frame" id="photoFrameEl" onclick="setCommand('0')">
+        <img id="photoImgEl" src="" alt="" />
+      </div>
+    </div>
+
+    <!-- RIGHT 6 TOUCH BUTTONS (Interactive Handshake, Games & Animals) -->
+    <div class="side-grid">
+      <div class="touch-btn" onclick="triggerRobot(this, 'hs', '1')">
+        <div class="btn-icon" id="btn-ic-hs"></div>
+        <div class="btn-label">HANDSHAKE</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'hf', 'win')">
+        <div class="btn-icon" id="btn-ic-hf"></div>
+        <div class="btn-label">HIGH FIVE</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'fb', '6')">
+        <div class="btn-icon" id="btn-ic-fb"></div>
+        <div class="btn-label">FIST BUMP</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'rps', 'win')">
+        <div class="btn-icon" id="btn-ic-rps"></div>
+        <div class="btn-label">R - P - S</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'fa', 'cow')">
+        <div class="btn-icon" id="btn-ic-fa"></div>
+        <div class="btn-label">FARM</div>
+      </div>
+      <div class="touch-btn" onclick="triggerRobot(this, 'a', 'lion')">
+        <div class="btn-icon" id="btn-ic-a"></div>
+        <div class="btn-label">SAFARI</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function makeKidsBg(skyTop, skyBot, hill1, hill2, decoType) {
+      var deco = '';
+      if (decoType === 'rainbow') {
+        deco =
+          '<circle cx="480" cy="70" r="40" fill="#FDE047"/>' +
+          '<circle cx="468" cy="64" r="4.5" fill="#1E1B4B"/><circle cx="492" cy="64" r="4.5" fill="#1E1B4B"/>' +
+          '<path d="M 466 76 Q 480 88 494 76" fill="none" stroke="#1E1B4B" stroke-width="4" stroke-linecap="round"/>' +
+          '<path d="M 270 460 A 210 210 0 0 1 690 460" fill="none" stroke="#FF5E7E" stroke-width="14" opacity="0.75"/>' +
+          '<path d="M 284 460 A 196 196 0 0 1 676 460" fill="none" stroke="#FFBE3D" stroke-width="14" opacity="0.75"/>' +
+          '<path d="M 298 460 A 182 182 0 0 1 662 460" fill="none" stroke="#4ADE80" stroke-width="14" opacity="0.75"/>' +
+          '<path d="M 312 460 A 168 168 0 0 1 648 460" fill="none" stroke="#38BDF8" stroke-width="14" opacity="0.75"/>';
+      } else if (decoType === 'disco') {
+        deco =
+          '<polygon points="320,0 200,500 440,500" fill="#F472B6" opacity="0.26"/>' +
+          '<polygon points="640,0 520,500 760,500" fill="#38BDF8" opacity="0.26"/>' +
+          '<polygon points="480,0 360,500 600,500" fill="#FDE047" opacity="0.20"/>';
+      } else if (decoType === 'space') {
+        deco =
+          '<circle cx="480" cy="80" r="34" fill="#FB7185"/>' +
+          '<ellipse cx="480" cy="80" rx="58" ry="12" fill="none" stroke="#FDE047" stroke-width="5"/>' +
+          '<circle cx="340" cy="70" r="5" fill="#fff"/><circle cx="620" cy="70" r="6" fill="#FDE047"/>';
+      } else if (decoType === 'hearts') {
+        deco =
+          '<g class="float-updown" fill="#FF4B72" opacity="0.88">' +
+            '<path d="M 350 90 C 335 70 308 85 325 108 L 350 130 L 375 108 C 392 85 365 70 350 90 Z"/>' +
+            '<path d="M 610 90 C 595 70 568 85 585 108 L 610 130 L 635 108 C 652 85 625 70 610 90 Z"/>' +
+          '</g>';
+      } else {
+        deco = '<circle cx="480" cy="72" r="38" fill="#FDE047" opacity="0.92"/>';
+      }
+
+      return (
+        '<svg viewBox="0 0 960 540" preserveAspectRatio="none">' +
+          '<defs>' +
+            '<linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">' +
+              '<stop offset="0%" stop-color="' + skyTop + '"/>' +
+              '<stop offset="100%" stop-color="' + skyBot + '"/>' +
+            '</linearGradient>' +
+          '</defs>' +
+          '<rect width="960" height="540" fill="url(#skyGrad)"/>' +
+          deco +
+          '<path d="M 0 435 Q 240 355 520 425 T 960 395 L 960 540 L 0 540 Z" fill="' + hill1 + '"/>' +
+          '<path d="M 0 465 Q 320 405 640 455 T 960 435 L 960 540 L 0 540 Z" fill="' + hill2 + '"/>' +
+        '</svg>'
+      );
+    }
+
+    function makeIcon(svgContent, size) {
+      var s = size || 135;
+      return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 100 100">' + svgContent + '</svg>';
+    }
+
+    var RAW_SVGS = {
+      "0": '<circle cx="50" cy="12" r="7" fill="#F43F5E"/><line x1="50" y1="18" x2="50" y2="28" stroke="#1E1B4B" stroke-width="5"/><rect x="18" y="28" width="64" height="56" rx="18" fill="#38BDF8" stroke="#1E1B4B" stroke-width="5"/><g class="eye-blink"><circle cx="37" cy="50" r="8" fill="#1E1B4B"/><circle cx="63" cy="50" r="8" fill="#1E1B4B"/><circle cx="35" cy="48" r="2.5" fill="#fff"/><circle cx="61" cy="48" r="2.5" fill="#fff"/></g><circle cx="26" cy="60" r="5" fill="#FB7185" opacity="0.75"/><circle cx="74" cy="60" r="5" fill="#FB7185" opacity="0.75"/><path d="M 35 66 Q 50 80 65 66" fill="none" stroke="#1E1B4B" stroke-width="5" stroke-linecap="round"/>',
+      "1": '<circle cx="50" cy="50" r="38" fill="#4ADE80" stroke="#1E1B4B" stroke-width="5"/><circle cx="36" cy="42" r="6" fill="#1E1B4B"/><circle cx="64" cy="42" r="6" fill="#1E1B4B"/><path d="M 32 60 Q 50 76 68 60" fill="none" stroke="#1E1B4B" stroke-width="6" stroke-linecap="round"/>',
+      "2": '<path d="M 20 52 A 30 30 0 0 1 80 52" stroke="#FF007F" stroke-width="8" fill="none"/><rect x="12" y="46" width="14" height="24" rx="6" fill="#00E5FF"/><rect x="74" y="46" width="14" height="24" rx="6" fill="#00E5FF"/><circle cx="50" cy="56" r="28" fill="#FDE047" stroke="#1E1B4B" stroke-width="5"/><polygon points="28,48 48,48 45,62 30,62" fill="#FF007F"/><polygon points="52,48 72,48 70,62 55,62" fill="#00E5FF"/><path d="M 38 70 Q 50 82 62 70" fill="none" stroke="#1E1B4B" stroke-width="5" stroke-linecap="round"/>',
+      "3": '<polygon points="56,10 22,56 48,56 40,90 78,42 52,42" fill="#EF4444" stroke="#1E1B4B" stroke-width="4"/>',
+      "4": '<circle cx="50" cy="50" r="38" fill="#FDE047" stroke="#1E1B4B" stroke-width="5"/><rect x="14" y="28" width="72" height="14" fill="#EF4444"/><circle cx="37" cy="54" r="6" fill="#1E1B4B"/><circle cx="63" cy="54" r="6" fill="#1E1B4B"/><path d="M 36 72 Q 50 80 64 72" fill="none" stroke="#1E1B4B" stroke-width="6" stroke-linecap="round"/>',
+      "5": '<polygon points="28,28 16,10 40,24" fill="#F59E0B"/><polygon points="72,28 84,10 60,24" fill="#F59E0B"/><rect x="18" y="24" width="64" height="58" rx="16" fill="#22C55E" stroke="#1E1B4B" stroke-width="5"/><circle cx="38" cy="46" r="8" fill="#1E1B4B"/><circle cx="62" cy="46" r="8" fill="#1E1B4B"/><polyline points="30,66 38,58 46,66 54,58 62,66 70,58" fill="none" stroke="#1E1B4B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>',
+      "6": '<path d="M 50 12 Q 72 36 68 70 H 32 Q 28 36 50 12 Z" fill="#38BDF8" stroke="#1E1B4B" stroke-width="4"/><circle cx="50" cy="44" r="9" fill="#fff"/><polygon points="32,56 16,74 32,70" fill="#F43F5E"/><polygon points="68,56 84,74 68,70" fill="#F43F5E"/><polygon points="41,72 50,92 59,72" fill="#F59E0B"/>',
+      "7": '<polygon points="50,10 62,36 90,39 69,58 75,86 50,71 25,86 31,58 10,39 38,36" fill="#F59E0B" stroke="#1E1B4B" stroke-width="4"/>',
+      "8": '<circle cx="33" cy="50" r="19" fill="none" stroke="#F43F5E" stroke-width="8"/><circle cx="67" cy="50" r="19" fill="none" stroke="#0EA5E9" stroke-width="8"/><circle cx="33" cy="50" r="8" fill="#F59E0B"/><circle cx="67" cy="50" r="8" fill="#22C55E"/>',
+      "9": '<circle cx="50" cy="50" r="38" fill="#FDE047" stroke="#1E1B4B" stroke-width="5"/><path d="M 30 42 Q 37 32 44 42" fill="none" stroke="#1E1B4B" stroke-width="6" stroke-linecap="round"/><path d="M 56 42 Q 63 32 70 42" fill="none" stroke="#1E1B4B" stroke-width="6" stroke-linecap="round"/><path d="M 30 58 Q 50 82 70 58 Z" fill="#F43F5E"/>',
+      "c": '<rect x="14" y="28" width="72" height="52" rx="12" fill="#38BDF8" stroke="#1E1B4B" stroke-width="5"/><rect x="34" y="18" width="32" height="12" rx="5" fill="#F43F5E" stroke="#1E1B4B" stroke-width="4"/><circle cx="50" cy="54" r="16" fill="#fff" stroke="#1E1B4B" stroke-width="5"/><circle cx="50" cy="54" r="7" fill="#1E1B4B"/>',
+      "l": '<path d="M 50 30 C 35 10 8 25 22 52 L 50 82 L 78 52 C 92 25 65 10 50 30 Z" fill="#FF4B72" stroke="#1E1B4B" stroke-width="4"/>',
+      "car": '<path d="M 15 58 L 26 36 H 74 L 85 58 H 92 V 74 H 8 V 58 Z" fill="#EF4444" stroke="#1E1B4B" stroke-width="4"/><polygon points="30,40 70,40 77,56 23,56" fill="#BAE6FD"/><circle cx="26" cy="74" r="11" fill="#1E1B4B"/><circle cx="26" cy="74" r="5" fill="#fff"/><circle cx="74" cy="74" r="11" fill="#1E1B4B"/><circle cx="74" cy="74" r="5" fill="#fff"/>',
+      "ele": '<ellipse cx="22" cy="50" rx="16" ry="24" fill="#94A3B8" stroke="#1E1B4B" stroke-width="4"/><ellipse cx="78" cy="50" rx="16" ry="24" fill="#94A3B8" stroke="#1E1B4B" stroke-width="4"/><circle cx="50" cy="48" r="26" fill="#CBD5E1" stroke="#1E1B4B" stroke-width="4"/><circle cx="40" cy="42" r="5" fill="#1E1B4B"/><circle cx="60" cy="42" r="5" fill="#1E1B4B"/><path d="M 50 52 Q 50 84 66 80" fill="none" stroke="#94A3B8" stroke-width="11" stroke-linecap="round"/>',
+      "bday": '<rect x="20" y="50" width="60" height="36" rx="8" fill="#F472B6" stroke="#1E1B4B" stroke-width="4"/><path d="M 20 62 Q 35 70 50 62 T 80 62" fill="none" stroke="#FDE047" stroke-width="5"/><rect x="46" y="28" width="8" height="22" fill="#38BDF8" stroke="#1E1B4B" stroke-width="3"/><path d="M 50 12 Q 58 22 50 28 Q 42 22 50 12 Z" fill="#FDE047"/>',
+      "win": '<path d="M 30 20 H 70 V 46 Q 70 68 50 68 Q 30 68 30 46 Z" fill="#FDE047" stroke="#1E1B4B" stroke-width="4"/><rect x="44" y="68" width="12" height="14" fill="#F59E0B" stroke="#1E1B4B" stroke-width="3"/><rect x="32" y="82" width="36" height="8" rx="4" fill="#1E1B4B"/>',
+      "surp": '<circle cx="50" cy="50" r="38" fill="#FDE047" stroke="#1E1B4B" stroke-width="5"/><circle cx="36" cy="42" r="8" fill="#1E1B4B"/><circle cx="64" cy="42" r="8" fill="#1E1B4B"/><circle cx="50" cy="68" r="12" fill="#1E1B4B"/>',
+      "shy": '<circle cx="50" cy="50" r="38" fill="#FBBF24" stroke="#1E1B4B" stroke-width="5"/><circle cx="28" cy="58" r="8" fill="#F43F5E" opacity="0.8"/><circle cx="72" cy="58" r="8" fill="#F43F5E" opacity="0.8"/><path d="M 30 44 Q 37 50 44 44" fill="none" stroke="#1E1B4B" stroke-width="5" stroke-linecap="round"/><path d="M 56 44 Q 63 50 70 44" fill="none" stroke="#1E1B4B" stroke-width="5" stroke-linecap="round"/><path d="M 42 68 Q 50 74 58 68" fill="none" stroke="#1E1B4B" stroke-width="5" stroke-linecap="round"/>',
+      "lion": '<circle cx="50" cy="50" r="42" fill="#D97706" stroke="#1E1B4B" stroke-width="4"/><circle cx="50" cy="50" r="28" fill="#FDE047" stroke="#1E1B4B" stroke-width="4"/><circle cx="40" cy="44" r="5" fill="#1E1B4B"/><circle cx="60" cy="44" r="5" fill="#1E1B4B"/><polygon points="45,54 55,54 50,61" fill="#1E1B4B"/><path d="M 40 66 Q 50 74 60 66" fill="none" stroke="#1E1B4B" stroke-width="4" stroke-linecap="round"/>',
+      "dino": '<polygon points="24,26 14,18 26,38" fill="#F59E0B"/><polygon points="24,44 12,38 24,56" fill="#F59E0B"/><path d="M 24 78 V 30 Q 24 16 44 16 H 76 Q 86 16 86 30 V 44 H 54 V 54 H 80 V 66 H 50 V 78 Z" fill="#22C55E" stroke="#1E1B4B" stroke-width="4"/><circle cx="44" cy="28" r="5" fill="#1E1B4B"/>',
+      "dog": '<ellipse cx="22" cy="46" rx="10" ry="22" fill="#92400E" stroke="#1E1B4B" stroke-width="4"/><ellipse cx="78" cy="46" rx="10" ry="22" fill="#92400E" stroke="#1E1B4B" stroke-width="4"/><circle cx="50" cy="50" r="28" fill="#FBBF24" stroke="#1E1B4B" stroke-width="4"/><circle cx="39" cy="44" r="5" fill="#1E1B4B"/><circle cx="61" cy="44" r="5" fill="#1E1B4B"/><ellipse cx="50" cy="56" rx="8" ry="6" fill="#1E1B4B"/><path d="M 44 68 Q 50 82 56 68 Z" fill="#F43F5E"/>',
+      "cat": '<polygon points="24,42 20,14 44,28" fill="#F472B6" stroke="#1E1B4B" stroke-width="4"/><polygon points="76,42 80,14 56,28" fill="#F472B6" stroke="#1E1B4B" stroke-width="4"/><circle cx="50" cy="54" r="28" fill="#FBCFE8" stroke="#1E1B4B" stroke-width="4"/><circle cx="39" cy="48" r="5" fill="#1E1B4B"/><circle cx="61" cy="48" r="5" fill="#1E1B4B"/><polygon points="46,58 54,58 50,64" fill="#F43F5E"/>',
+      "bird": '<circle cx="50" cy="52" r="28" fill="#38BDF8" stroke="#1E1B4B" stroke-width="4"/><path d="M 22 48 Q 6 32 14 64 Z" fill="#0284C7" stroke="#1E1B4B" stroke-width="4"/><path d="M 78 48 Q 94 32 86 64 Z" fill="#0284C7" stroke="#1E1B4B" stroke-width="4"/><circle cx="40" cy="46" r="5" fill="#1E1B4B"/><circle cx="60" cy="46" r="5" fill="#1E1B4B"/><polygon points="44,56 56,56 50,68" fill="#FDE047" stroke="#1E1B4B" stroke-width="3"/>',
+      "frog": '<circle cx="34" cy="28" r="14" fill="#4ADE80" stroke="#1E1B4B" stroke-width="4"/><circle cx="66" cy="28" r="14" fill="#4ADE80" stroke="#1E1B4B" stroke-width="4"/><circle cx="34" cy="28" r="6" fill="#1E1B4B"/><circle cx="66" cy="28" r="6" fill="#1E1B4B"/><ellipse cx="50" cy="56" rx="34" ry="24" fill="#4ADE80" stroke="#1E1B4B" stroke-width="4"/><path d="M 30 60 Q 50 74 70 60" fill="none" stroke="#1E1B4B" stroke-width="5" stroke-linecap="round"/>',
+      "soccer": '<circle cx="50" cy="50" r="38" fill="#ffffff" stroke="#1E1B4B" stroke-width="5"/><polygon points="50,32 64,42 59,58 41,58 36,42" fill="#1E1B4B"/><polygon points="50,12 60,20 50,32 40,20" fill="#1E1B4B"/><polygon points="86,38 78,52 64,42 74,28" fill="#1E1B4B"/><polygon points="14,38 26,28 36,42 22,52" fill="#1E1B4B"/><polygon points="72,80 56,74 59,58 76,64" fill="#1E1B4B"/><polygon points="28,80 24,64 41,58 44,74" fill="#1E1B4B"/>',
+      "cow": '<path d="M 24 28 Q 14 12 32 22" fill="#FDE047" stroke="#1E1B4B" stroke-width="4"/><path d="M 76 28 Q 86 12 68 22" fill="#FDE047" stroke="#1E1B4B" stroke-width="4"/><rect x="22" y="24" width="56" height="54" rx="18" fill="#ffffff" stroke="#1E1B4B" stroke-width="4"/><circle cx="34" cy="36" r="9" fill="#1E1B4B"/><circle cx="68" cy="44" r="7" fill="#1E1B4B"/><circle cx="38" cy="44" r="4" fill="#1E1B4B"/><circle cx="62" cy="44" r="4" fill="#1E1B4B"/><ellipse cx="50" cy="64" rx="22" ry="13" fill="#F472B6" stroke="#1E1B4B" stroke-width="4"/><circle cx="42" cy="64" r="3.5" fill="#1E1B4B"/><circle cx="58" cy="64" r="3.5" fill="#1E1B4B"/>',
+      "sheep": '<circle cx="50" cy="24" r="14" fill="#ffffff"/><circle cx="32" cy="30" r="14" fill="#ffffff"/><circle cx="68" cy="30" r="14" fill="#ffffff"/><circle cx="24" cy="50" r="14" fill="#ffffff"/><circle cx="76" cy="50" r="14" fill="#ffffff"/><circle cx="34" cy="70" r="14" fill="#ffffff"/><circle cx="66" cy="70" r="14" fill="#ffffff"/><circle cx="50" cy="74" r="14" fill="#ffffff"/><ellipse cx="50" cy="52" rx="20" ry="22" fill="#1E1B4B"/><circle cx="43" cy="48" r="4" fill="#fff"/><circle cx="57" cy="48" r="4" fill="#fff"/>',
+      "horse": '<polygon points="30,26 24,10 40,22" fill="#92400E" stroke="#1E1B4B" stroke-width="3"/><polygon points="70,26 76,10 60,22" fill="#92400E" stroke="#1E1B4B" stroke-width="3"/><rect x="26" y="20" width="48" height="62" rx="20" fill="#B45309" stroke="#1E1B4B" stroke-width="4"/><polygon points="46,20 54,20 50,44" fill="#ffffff"/><circle cx="38" cy="42" r="5" fill="#1E1B4B"/><circle cx="62" cy="42" r="5" fill="#1E1B4B"/><ellipse cx="50" cy="68" rx="18" ry="12" fill="#78350F"/>',
+      "duck": '<circle cx="50" cy="50" r="32" fill="#FDE047" stroke="#1E1B4B" stroke-width="4"/><circle cx="39" cy="42" r="5" fill="#1E1B4B"/><circle cx="61" cy="42" r="5" fill="#1E1B4B"/><ellipse cx="50" cy="60" rx="18" ry="10" fill="#F97316" stroke="#1E1B4B" stroke-width="4"/>',
+      "chicken": '<circle cx="42" cy="18" r="7" fill="#EF4444"/><circle cx="50" cy="15" r="8" fill="#EF4444"/><circle cx="58" cy="18" r="7" fill="#EF4444"/><circle cx="50" cy="52" r="30" fill="#ffffff" stroke="#1E1B4B" stroke-width="4"/><circle cx="39" cy="44" r="5" fill="#1E1B4B"/><circle cx="61" cy="44" r="5" fill="#1E1B4B"/><polygon points="42,54 58,54 50,66" fill="#F59E0B" stroke="#1E1B4B" stroke-width="3"/>',
+      "pig": '<polygon points="24,34 18,14 38,24" fill="#F472B6" stroke="#1E1B4B" stroke-width="4"/><polygon points="76,34 82,14 62,24" fill="#F472B6" stroke="#1E1B4B" stroke-width="4"/><circle cx="50" cy="52" r="32" fill="#FBCFE8" stroke="#1E1B4B" stroke-width="4"/><circle cx="38" cy="44" r="5" fill="#1E1B4B"/><circle cx="62" cy="44" r="5" fill="#1E1B4B"/><ellipse cx="50" cy="60" rx="15" ry="11" fill="#F472B6" stroke="#1E1B4B" stroke-width="4"/><circle cx="45" cy="60" r="3.5" fill="#1E1B4B"/><circle cx="55" cy="60" r="3.5" fill="#1E1B4B"/>',
+      "hand": '<path d="M 28 54 V 26 A 6 6 0 0 1 40 26 V 46 V 18 A 6 6 0 0 1 52 18 V 46 V 22 A 6 6 0 0 1 64 22 V 48 V 30 A 6 6 0 0 1 76 30 V 62 Q 76 86 50 86 Q 24 86 20 62 L 14 46 A 6 6 0 0 1 25 42 Z" fill="#FDE047" stroke="#1E1B4B" stroke-width="4"/>'
+    };
+
+    var SCENES = {
+      "0": { bg: makeKidsBg("#0284C7", "#7DD3FC", "#4ADE80", "#16A34A", "rainbow"), dance: false },
+      "1": { bg: makeKidsBg("#0EA5E9", "#BAE6FD", "#34D399", "#059669", "rainbow"), dance: true },
+      "2": { bg: makeKidsBg("#4C1D95", "#9333EA", "#C026D3", "#701A75", "disco"),   dance: true },
+      "3": { bg: makeKidsBg("#991B1B", "#F43F5E", "#BE123C", "#881337", "disco"),   dance: true },
+      "4": { bg: makeKidsBg("#C2410C", "#FDBA74", "#D97706", "#92400E", "stars"),   dance: true },
+      "5": { bg: makeKidsBg("#065F46", "#34D399", "#15803D", "#14532D", "stars"),   dance: true },
+      "6": { bg: makeKidsBg("#090D2A", "#1E3A8A", "#1D4ED8", "#1E1B4B", "space"),   dance: true },
+      "7": { bg: makeKidsBg("#B45309", "#FDE047", "#CA8A04", "#854D0E", "disco"),   dance: true },
+      "8": { bg: makeKidsBg("#5B21B6", "#C084FC", "#7E22CE", "#4C1D95", "disco"),   dance: true },
+      "9": { bg: makeKidsBg("#0D9488", "#99F6E4", "#10B981", "#047857", "rainbow"), dance: true },
+      "c": { bg: makeKidsBg("#0284C7", "#38BDF8", "#10B981", "#059669", "stars"),   dance: false },
+      "p": { bg: makeKidsBg("#4C1D95", "#9333EA", "#EC4899", "#BE185D", "disco"),   dance: false },
+      "l": { bg: makeKidsBg("#BE185D", "#F472B6", "#EC4899", "#9D174D", "hearts"),  dance: true },
+      "car":     { bg: makeKidsBg("#991B1B", "#F87171", "#D97706", "#92400E", "stars"),   dance: true },
+      "ele":     { bg: makeKidsBg("#065F46", "#6EE7B7", "#16A34A", "#14532D", "rainbow"), dance: true },
+      "bday":    { bg: makeKidsBg("#7E22CE", "#F472B6", "#EC4899", "#9D174D", "disco"),   dance: true },
+      "win":     { bg: makeKidsBg("#B45309", "#FDE047", "#16A34A", "#15803D", "stars"),   dance: true },
+      "surp":    { bg: makeKidsBg("#1E3A8A", "#60A5FA", "#2563EB", "#1D4ED8", "stars"),   dance: true },
+      "shy":     { bg: makeKidsBg("#BE185D", "#FBCFE8", "#F472B6", "#DB2777", "hearts"),  dance: true },
+      "lion":    { bg: makeKidsBg("#B45309", "#FDE047", "#D97706", "#92400E", "stars"),   dance: true },
+      "dino":    { bg: makeKidsBg("#065F46", "#4ADE80", "#15803D", "#14532D", "stars"),   dance: true },
+      "dog":     { bg: makeKidsBg("#0284C7", "#7DD3FC", "#F59E0B", "#D97706", "rainbow"), dance: true },
+      "cat":     { bg: makeKidsBg("#9D174D", "#FBCFE8", "#EC4899", "#BE185D", "hearts"),  dance: true },
+      "bird":    { bg: makeKidsBg("#0369A1", "#BAE6FD", "#38BDF8", "#0284C7", "rainbow"), dance: true },
+      "frog":    { bg: makeKidsBg("#047857", "#6EE7B7", "#10B981", "#065F46", "rainbow"), dance: true },
+      "soccer":  { bg: makeKidsBg("#0284C7", "#38BDF8", "#16A34A", "#15803D", "disco"),   dance: true },
+      "cow":     { bg: makeKidsBg("#0284C7", "#BAE6FD", "#22C55E", "#15803D", "rainbow"), dance: true },
+      "sheep":   { bg: makeKidsBg("#0EA5E9", "#E0F2FE", "#4ADE80", "#16A34A", "rainbow"), dance: true },
+      "horse":   { bg: makeKidsBg("#B45309", "#FDE047", "#16A34A", "#14532D", "stars"),   dance: true },
+      "duck":    { bg: makeKidsBg("#0284C7", "#7DD3FC", "#38BDF8", "#0369A1", "rainbow"), dance: true },
+      "chicken": { bg: makeKidsBg("#D97706", "#FEF08A", "#22C55E", "#15803D", "stars"),   dance: true },
+      "pig":     { bg: makeKidsBg("#DB2777", "#FBCFE8", "#4ADE80", "#16A34A", "hearts"),  dance: true }
+    };
+
+    // Populate the 12 touch button icons
+    var BTN_MAP = {
+      "btn-ic-cr":  "soccer",
+      "btn-ic-lm":  "win",
+      "btn-ic-p":   "c",
+      "btn-ic-2":   "2",
+      "btn-ic-3":   "3",
+      "btn-ic-4":   "4",
+      "btn-ic-hs":  "1",
+      "btn-ic-hf":  "hand",
+      "btn-ic-fb":  "6",
+      "btn-ic-rps": "7",
+      "btn-ic-fa":  "cow",
+      "btn-ic-a":   "lion"
+    };
+    for (var bid in BTN_MAP) {
+      var bel = document.getElementById(bid);
+      if (bel) bel.innerHTML = makeIcon(RAW_SVGS[BTN_MAP[bid]], 52);
+    }
+
+    var ICON_KEYS = ["0", "2", "cow", "lion", "dog", "soccer", "3", "4"];
+    var tapIdx = 0;
+    var lastSeq = -1;
+
+    // Sends touch command directly to Pepper's local Python HTTP server on 198.18.0.1:8765
+    function triggerRobot(btnEl, cmdCode, previewScene) {
+      if (btnEl) {
+        btnEl.className = "touch-btn active-press";
+        setTimeout(function() { btnEl.className = "touch-btn"; }, 350);
+      }
+      if (previewScene) {
+        setCommand(previewScene);
+      }
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "http://198.18.0.1:8765/cmd?c=" + encodeURIComponent(cmdCode) + "&t=" + new Date().getTime(), true);
+        xhr.send(null);
+      } catch (e) {}
+    }
+
+    function onScreenTap(e) {
+      var x = e.clientX || 480;
+      var y = e.clientY || 270;
+      var el = document.createElement("div");
+      el.className = "tap-star";
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      el.innerHTML = '<svg viewBox="0 0 40 40" width="40" height="40"><polygon points="20,2 25,14 38,15 28,24 31,37 20,30 9,37 12,24 2,15 15,14" fill="#FDE047" stroke="#FF4B72" stroke-width="2.5"/></svg>';
+      document.body.appendChild(el);
+      setTimeout(function() {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      }, 720);
+    }
+
+    function onAvatarTap(e) {
+      var circle = document.getElementById("circleEl");
+      circle.className = "circle tapped";
+      tapIdx = (tapIdx + 1) % ICON_KEYS.length;
+      var k = ICON_KEYS[tapIdx];
+      document.getElementById("iconEl").innerHTML = makeIcon(RAW_SVGS[k] || RAW_SVGS["0"], 135);
+      // Also trigger a quick giggle/laugh or happy reaction when center face is tapped!
+      triggerRobot(null, "9", "9");
+      setTimeout(function() {
+        circle.className = "circle dancing";
+      }, 460);
+    }
+
+    function triggerFlash() {
+      var fl = document.getElementById("flashEl");
+      fl.className = "flash-overlay active";
+      setTimeout(function() {
+        fl.className = "flash-overlay";
+      }, 320);
+    }
+
+    function setCommand(cmdNum, customSpeech, customTitle, photoTs) {
+      var key = String(cmdNum !== undefined && cmdNum !== null ? cmdNum : "0");
+      if (!SCENES[key]) key = "0";
+      var s = SCENES[key];
+
+      document.getElementById("bgEl").innerHTML = s.bg;
+
+      var circle = document.getElementById("circleEl");
+      var frame = document.getElementById("photoFrameEl");
+      var img = document.getElementById("photoImgEl");
+
+      if (key === "p") {
+        triggerFlash();
+        circle.style.display = "none";
+        frame.className = "photo-frame visible";
+        var ts = photoTs || new Date().getTime();
+        img.src = "kids_photo.jpg?t=" + ts;
+      } else {
+        frame.className = "photo-frame";
+        circle.style.display = "";
+        circle.className = s.dance ? "circle dancing" : "circle";
+        document.getElementById("iconEl").innerHTML = makeIcon(RAW_SVGS[key] || RAW_SVGS["0"], 135);
+      }
+    }
+
+    function pollState() {
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "kids_state.json?t=" + new Date().getTime(), true);
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState === 4 && xhr.status === 200) {
+            try {
+              var data = JSON.parse(xhr.responseText);
+              if (data && data.seq !== undefined && data.seq !== lastSeq) {
+                lastSeq = data.seq;
+                setCommand(data.cmd, "", "", data.seq);
+              }
+            } catch (e) {}
+          }
+        };
+        xhr.send(null);
+      } catch (e) {}
+      setTimeout(pollState, 250);
+    }
+
+    setCommand("0", "", "");
+    pollState();
+  </script>
+</body>
+</html>
