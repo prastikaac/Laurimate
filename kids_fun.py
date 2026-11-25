@@ -2105,6 +2105,9 @@ class KidsEntertainer(object):
             ]
             while True:
                 time.sleep(0.25)
+                # Only play touch sounds/animations when Kids Mode is actively open!
+                if not os.path.exists(WEBVIEW_FLAG):
+                    continue
                 if self.busy:
                     continue
                 try:

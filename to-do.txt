@@ -1,1 +1,5 @@
-common words recognization samples like leppavara laurea tikurilla
+currently when someone speaks and pepper starts istinning thinking and giving answers and while giving answers if someone speaks in middle  it listnes but only answers after finishing the answers so make it like if someone interrupt in the midlle start listening, but not on small noises, only if someone is speaking to pepper
+
+
+
+when moving pepper hands its playing sound even when kids mode is no, it should only play sound when kids mode is not on and tablet was appearing but when i touched the robot and moved a little bit it speaked like ohh and than the tablet went off screensaver comes but the pepper is still working listening and answering, donot make tablet to go off

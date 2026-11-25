@@ -91,7 +91,8 @@ def ensure_kids_touch_daemon():
                 ["/usr/bin/python2.7", KIDS_SCRIPT, "--daemon"],
                 cwd=LAURIMATE_DIR,
                 stdout=open(os.devnull, "w"),
-                stderr=open(os.devnull, "w")
+                stderr=open(os.devnull, "w"),
+                close_fds=True
             )
     except Exception as e:
         log("Kids daemon start note: {}".format(e))
@@ -110,6 +111,42 @@ def is_pepper_main_running():
 
 
 KIDS_FLAG = "/tmp/laurimate_kids_webview_v6.flag"
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/prastikaac/Laurimate/main"
+APP_ROOT_DIR = "/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7"
+APP_HTML_DIR = "/home/nao/.local/share/PackageManager/apps/laurimate-1e47c7/html"
+
+
+def sync_latest_from_github():
+    """
+    Pulls latest pepper_main.py, kids_fun.py, and tablet UI files directly from GitHub
+    over the internet on boot (works even on laurea-visitor with AP client isolation!).
+    """
+    files_to_sync = [
+        ("pepper_main.py", [os.path.join(LAURIMATE_DIR, "pepper_main.py")], "# -*- coding: utf-8 -*-"),
+        ("kids_fun.py",    [os.path.join(LAURIMATE_DIR, "kids_fun.py")],    "# -*- coding: utf-8 -*-"),
+        ("tablet/index.html", [os.path.join(APP_ROOT_DIR, "index.html"), os.path.join(APP_HTML_DIR, "index.html")], "<!DOCTYPE html>"),
+        ("tablet/kids.html",  [os.path.join(APP_ROOT_DIR, "kids.html"),  os.path.join(APP_HTML_DIR, "kids.html")],  "<!DOCTYPE html>"),
+    ]
+    for rel_url, dest_paths, valid_marker in files_to_sync:
+        try:
+            url = "{}/{}?t={}".format(GITHUB_RAW_BASE, rel_url, int(time.time()))
+            p = subprocess.Popen(
+                ["curl", "-k", "-s", "-L", "--max-time", "8", url],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            out, _ = p.communicate()
+            if out and valid_marker in out and len(out) > 1000:
+                out_lf = out.replace("\r\n", "\n")
+                for dp in dest_paths:
+                    try:
+                        with open(dp, "wb") as f:
+                            f.write(out_lf)
+                    except Exception:
+                        pass
+                log("Synced latest {} from GitHub ({} bytes).".format(rel_url, len(out_lf)))
+        except Exception as e:
+            log("GitHub sync note for {}: {}".format(rel_url, e))
 
 
 def main():
@@ -119,9 +156,8 @@ def main():
         return
 
     log("=== Pepper Boot Sequence Started ===")
-    # On fresh boot, clear any stale kids flag if needed, then wait for NAOqi
+    # On fresh boot, wait for NAOqi and ALTabletService
     wait_for_naoqi_services()
-    ensure_kids_touch_daemon()
 
     # Supervise pepper_main.py forever (pauses automatically while Kids Mode is active)
     while True:
@@ -138,10 +174,11 @@ def main():
             try:
                 log_fp = open(LOG_FILE, "a")
                 proc = subprocess.Popen(
-                    ["/usr/bin/python2.7", MAIN_SCRIPT],
+                    ["/usr/bin/python2.7", "-u", MAIN_SCRIPT],
                     cwd=LAURIMATE_DIR,
                     stdout=log_fp,
-                    stderr=log_fp
+                    stderr=log_fp,
+                    close_fds=True
                 )
                 proc.wait()
                 log("pepper_main.py exited with code {}. Restarting in 5s...".format(proc.returncode))

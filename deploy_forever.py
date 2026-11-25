@@ -11,7 +11,7 @@ import sys
 import time
 import paramiko
 
-PEPPER_SSH_IP = "192.168.0.118"
+PEPPER_SSH_IP = sys.argv[1] if len(sys.argv) > 1 else "192.168.0.118"
 PEPPER_USER   = "nao"
 PEPPER_PASS   = "Dll#2025"
 
@@ -62,6 +62,7 @@ def main():
         ("kids_fun.py", True),
         ("start_on_boot.py", True),
         ("ai_wrapper.py", True),
+        ("finnish_words.json", True),
         ("campus_faq.json", False),
         ("ansdatabase.json", False),
     ]
@@ -111,12 +112,34 @@ def main():
 
     # 5. Restart background services cleanly so the new permanent setup is live immediately
     print("\n4) Starting permanent boot watchdog & main Pepper system on Pepper...")
-    run_remote(ssh, "pkill -f start_on_boot.py; pkill -f pepper_main.py; truncate -s 0 /home/nao/Laurimate/laurimate_boot.log; rm -f /tmp/laurimate_kids_webview_v6.flag")
-    time.sleep(1.0)
+    kill_script = (
+        "import os, subprocess, sys\n"
+        "sys.path.insert(0, '/opt/aldebaran/lib/python2.7/site-packages')\n"
+        "try:\n"
+        "    from naoqi import ALProxy\n"
+        "    cm = ALProxy('ALConnectionManager', '127.0.0.1', 9559)\n"
+        "    for s in cm.services():\n"
+        "        d = dict(s)\n"
+        "        if str(d.get('Name')) == 'laurea-visitor':\n"
+        "            try: cm.setServiceConfiguration([['ServiceId', d['ServiceId']], ['AutoConnect', False]])\n"
+        "            except Exception: pass\n"
+        "            try: cm.forget(d['ServiceId'])\n"
+        "            except Exception: pass\n"
+        "except Exception: pass\n"
+        "out = subprocess.check_output(['ps', 'aux'])\n"
+        "for line in out.splitlines():\n"
+        "    if ('start_on_boot.py' in line or 'pepper_main.py' in line or 'kids_fun.py' in line or 'startapplaunchertablet.py' in line) and 'kill_helper' not in line:\n"
+        "        try: os.kill(int(line.split()[1]), 9)\n"
+        "        except Exception: pass\n"
+    )
+    with sftp.open("/tmp/kill_helper.py", "wb") as kf:
+        kf.write(kill_script.encode("utf-8"))
+    run_remote(ssh, "python2.7 /tmp/kill_helper.py; rm -f /tmp/kill_helper.py /tmp/laurimate_kids_webview_v6.flag; truncate -s 0 /home/nao/Laurimate/laurimate_boot.log")
+    time.sleep(1.5)
     run_remote(ssh, "setsid /home/nao/Laurimate/start_on_boot.py </dev/null >/dev/null 2>&1 &")
     time.sleep(12.0)
 
-    out, _ = run_remote(ssh, "ps aux | grep -E 'start_on_boot|pepper_main|kids_fun' | grep -v grep && echo ===AUTOLOAD=== && cat /home/nao/naoqi/preferences/autoload.ini && echo ===BOOTLOG=== && cat /home/nao/Laurimate/laurimate_boot.log")
+    out, _ = run_remote(ssh, "ps aux | grep -E 'start_on_boot|pepper_main|kids_fun' | grep -v grep && echo ===BOOTLOG=== && tail -n 30 /home/nao/Laurimate/laurimate_boot.log")
     print("\n5) Verification on Pepper:")
     print(out)
 

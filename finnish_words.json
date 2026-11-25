@@ -1,0 +1,107 @@
+{
+  "description": "Laurimate Finnish Words & Phonetic Recognition Samples Collection for SoftBank Pepper",
+  "campuses_and_places": {
+    "Leppävaara": [
+      "leppävaara", "leppavaara", "leppavara", "lepavara", "lepavaara",
+      "leppa vaara", "lepa vaara", "lepa vara", "leppa vara", "lipa vara",
+      "lipa vaara", "leppä vaara", "leppävaaran", "leppavaaran", "leppavarassa",
+      "leppävaarassa", "leppävaaraan", "leppavaaraan", "let the vara",
+      "leopard vara", "leppa bar", "lepa bar", "leppavaar"
+    ],
+    "Laurea": [
+      "laurea", "lauria", "laura", "loria", "lorea", "lorya", "laurie",
+      "gloria", "lowry", "laurean", "laureassa", "laureasta", "laureaan",
+      "laurea's", "lauriam", "lauream"
+    ],
+    "Laurimate": [
+      "laurimate", "lauri mate", "laurie mate", "lori mate", "laurea mate",
+      "lory mate", "laurimait", "lauri-mate", "lauramite"
+    ],
+    "Tikkurila": [
+      "tikkurila", "tikurilla", "tikkurilla", "tikurila", "tiku rila",
+      "tikka rilla", "tiku rilla", "tikurilan", "tikkurilan", "tikkurilassa",
+      "tikkurilaan", "ticorila", "tecurila", "tickrila", "tequila campus",
+      "tikorila", "tikkuril"
+    ],
+    "Otaniemi": [
+      "otaniemi", "ota niemi", "otta niemi", "otanimi", "ota nimi",
+      "autoniemi", "atanimi", "otaniemen", "otaniemessä", "otaniemeen",
+      "otaniem"
+    ],
+    "Hyvinkää": [
+      "hyvinkää", "hyvinkaa", "hyvinka", "huvinka", "huvinkaa", "hivinka",
+      "hivinkaa", "hyvinga", "hoovinka", "heavinka", "hyvinkään",
+      "hyvinkäällä", "hyvinkäälle"
+    ],
+    "Porvoo": [
+      "porvoo", "porvo", "poorvo", "poorvoo", "borvo", "borvoo",
+      "porvoon", "porvoossa", "porvooseen"
+    ],
+    "Lohja": [
+      "lohja", "lohya", "loja", "loya", "lohjan", "lohjalla", "lohjalle"
+    ],
+    "Espoo": [
+      "espoo", "espo", "esbo", "espoon", "espoossa", "espooseen"
+    ],
+    "Vantaa": [
+      "vantaa", "vanta", "vantaan", "vantaalla", "vantaalle"
+    ],
+    "Helsinki": [
+      "helsinki", "helsingin", "helsingissä", "helsinkiin", "helsingfors"
+    ],
+    "Vanha maantie": [
+      "vanha maantie", "vanha mantie", "vana mantie", "vanha monty",
+      "vanha man tie", "vanhamaantie", "vanha maantie 9"
+    ]
+  },
+  "campus_systems_and_services": {
+    "eduroam": [
+      "eduroam", "edu roam", "eduroamissa", "eduroamin", "edu room",
+      "eduram", "edurom", "eduroom"
+    ],
+    "Tuudo": [
+      "tuudo", "tudo", "tuudon", "tuudossa", "two do", "to do app",
+      "todo app", "tuudo app"
+    ],
+    "Pakki": [
+      "pakki", "paki", "pakin", "pakissa", "pucky", "packy", "pakki portal"
+    ],
+    "Laureamko": [
+      "laureamko", "laurea amko", "lauriamko", "lauramko", "loriamko",
+      "laureamkon"
+    ],
+    "BarLaurea": [
+      "barlaurea", "bar laurea", "bar laura", "bar loria", "bar lauria"
+    ],
+    "kirjasto": [
+      "kirjasto", "kirjaston", "kirjastossa", "kirjastoon", "kiriasto", "kirjastoissa"
+    ],
+    "ravintola": [
+      "ravintola", "ravintolan", "ravintolassa", "ruokala", "ruokalan",
+      "ruokalassa", "ruokalista", "kahvila"
+    ],
+    "opintotoimisto": [
+      "opintotoimisto", "opinto toimisto", "opintotoimiston", "opintotoimistossa",
+      "opintopalvelut", "aulapalvelut"
+    ],
+    "lukujärjestys": [
+      "lukujärjestys", "lukujarjestys", "luku järjestys", "lukkari"
+    ],
+    "opiskelijakortti": [
+      "opiskelijakortti", "opiskelija kortti", "opiskelija", "opiskelijat"
+    ],
+    "pysäköinti": [
+      "pysäköinti", "pysakointi", "parkkipaikka", "autopaikka"
+    ]
+  },
+  "common_finnish_greetings_and_questions": {
+    "moi": ["moi", "moikka", "moro", "hei", "heippa", "terve", "huomenta", "hyvää päivää", "päivää"],
+    "kiitos": ["kiitos", "kiitti", "kiitoksia", "paljon kiitoksia", "kito", "kitos"],
+    "näkemiin": ["näkemiin", "nakemiin", "hei hei", "moikka", "nähdään", "nahdaan"],
+    "anteeksi": ["anteeksi", "anteksi", "sori"],
+    "missä": ["missä", "missa", "missä on", "missa on", "mistä löytyy"],
+    "mitä": ["mitä", "mita", "mitä kuuluu", "mita kuuluu", "mikä on", "mika on"],
+    "milloin": ["milloin", "monelta", "mihin aikaan", "kello", "paljonko kello on"],
+    "sää": ["sää", "saa", "millainen sää", "lämpötila"]
+  }
+}

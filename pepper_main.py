@@ -92,47 +92,144 @@ GROQ_MODEL        = "openai/gpt-oss-120b"
 # --- GEMINI API (Optional alternative from https://aistudio.google.com/apikey) ---
 GEMINI_API_KEY    = ""
 
-SAMPLE_RATE       = 16000     # 16 kHz front mic
-AUDIO_CHANNEL     = 3         # 3 = Front microphone on Pepper's head
-PREROLL_SECONDS   = 1.0       # Retain 1.0s audio before speech trigger
-START_THRESHOLD_S = 0.12      # Speech must sustain 120ms to trigger
-SILENCE_TIMEOUT_S = 0.85      # Silence duration before ending utterance
-MIN_SPEECH_SEC    = 0.35      # Ignore clicks/bursts shorter than 350ms
-MAX_RECORD_SEC    = 14.0      # Safety cutoff for long speech
-IDLE_SESSION_SEC  = 60.0      # Return to welcome screen after 60s inactivity
+SAMPLE_RATE         = 16000     # 16 kHz front mic
+AUDIO_CHANNEL       = 3         # 3 = Front microphone on Pepper's head
+PREROLL_SECONDS     = 1.0       # Retain 1.0s audio before speech trigger
+START_THRESHOLD_S   = 0.16      # Speech must sustain 160ms to start listening
+SILENCE_TIMEOUT_S   = 1.45      # Wait 1.45s of silence so the user can speak their WHOLE question without being cut off mid-sentence
+MIN_SPEECH_SEC      = 0.50      # Ignore short 1-syllable noise bursts shorter than 500ms
+MAX_RECORD_SEC      = 16.0      # Safety cutoff for long questions
+IDLE_SESSION_SEC    = 60.0      # Return to welcome screen after 60s inactivity
+
+# Smart Barge-In (Mid-Answer Interruption) Settings:
+# From live Pepper mic logs:
+#   - Pepper's own TTS voice averages ~3500-7500 RMS (with brief 1-frame syllable peaks ~8500 RMS)
+#   - A human interrupting Pepper while TTS plays produces sustained ~9200-12000+ RMS
+# Setting BARGE_IN_MIN_RMS = 8800.0 with 0.36s sustain lets Pepper finish answers smoothly
+# while interrupting immediately when a person talks over Pepper.
+BARGE_IN_SUSTAIN_S  = 0.36      # 360ms sustained voice above threshold to interrupt Pepper mid-answer
+BARGE_IN_MIN_RMS    = 8800.0    # Sweet-spot threshold measured from Pepper's head mic logs
+BARGE_IN_GRACE_S    = 0.55      # Initial 550ms grace window at start of TTS answer
 
 # ------------------------------------------------------------------
-# Gestures Configuration
+# Natural Hand Signs & Gestures Library (Categorized by Meaning)
 # ------------------------------------------------------------------
-GESTURE_HEY     = ["animations/Stand/Gestures/Hey_1", "animations/Stand/Gestures/Hey_4", "animations/Stand/Gestures/Hey_6"]
-GESTURE_WAVE    = ["animations/Stand/Gestures/Hey_3", "animations/Stand/Gestures/Hey_1"]
-GESTURE_BYE     = ["animations/Stand/Gestures/Hey_2"]
-GESTURE_YES     = ["animations/Stand/Gestures/Yes_1", "animations/Stand/Gestures/Yes_2", "animations/Stand/Gestures/Yes_3"]
-GESTURE_NO      = ["animations/Stand/Gestures/No_1", "animations/Stand/Gestures/No_3", "animations/Stand/Gestures/No_8"]
+GESTURE_HEY = [
+    "animations/Stand/Gestures/Hey_1", "animations/Stand/Gestures/Hey_3",
+    "animations/Stand/Gestures/Hey_4", "animations/Stand/Gestures/Hey_6"
+]
+GESTURE_WAVE = [
+    "animations/Stand/Gestures/Hey_3", "animations/Stand/Gestures/Hey_1"
+]
+GESTURE_BYE = [
+    "animations/Stand/Gestures/Hey_2", "animations/Stand/Gestures/BowShort_1",
+    "animations/Stand/Gestures/Salute_1"
+]
+GESTURE_ME = [
+    "animations/Stand/Gestures/Me_1", "animations/Stand/Gestures/Me_2",
+    "animations/Stand/Gestures/Me_4", "animations/Stand/Gestures/Me_7"
+]
+GESTURE_YOU = [
+    "animations/Stand/Gestures/You_1", "animations/Stand/Gestures/You_2",
+    "animations/Stand/Gestures/You_3", "animations/Stand/Gestures/You_4",
+    "animations/Stand/Gestures/Give_1", "animations/Stand/Gestures/Give_3",
+    "animations/Stand/Gestures/Please_1"
+]
+GESTURE_YES = [
+    "animations/Stand/Gestures/Yes_1", "animations/Stand/Gestures/Yes_2",
+    "animations/Stand/Gestures/Yes_3", "animations/Stand/Gestures/Great_1"
+]
+GESTURE_NO = [
+    "animations/Stand/Gestures/No_1", "animations/Stand/Gestures/No_2",
+    "animations/Stand/Gestures/No_3", "animations/Stand/Gestures/No_8"
+]
+GESTURE_DONT_KNOW = [
+    "animations/Stand/Gestures/IDontKnow_1", "animations/Stand/Gestures/IDontKnow_2",
+    "animations/Stand/Gestures/IDontKnow_3", "animations/Stand/Gestures/Maybe_1"
+]
+GESTURE_DIRECTION = [
+    "animations/Stand/Gestures/ShowFloor_1", "animations/Stand/Gestures/ShowFloor_2",
+    "animations/Stand/Gestures/ShowFloor_3", "animations/Stand/Gestures/Far_1",
+    "animations/Stand/Gestures/Far_2", "animations/Stand/Gestures/TakePlace_1",
+    "animations/Stand/Gestures/TakePlace_2", "animations/Stand/Gestures/Look_1"
+]
+GESTURE_SKY_WEATHER = [
+    "animations/Stand/Gestures/ShowSky_1", "animations/Stand/Gestures/ShowSky_2",
+    "animations/Stand/Gestures/ShowSky_4", "animations/Stand/Gestures/ShowSky_6",
+    "animations/Stand/Gestures/ShowSky_8"
+]
+GESTURE_SHOW = [
+    "animations/Stand/Gestures/ShowTablet_1", "animations/Stand/Gestures/ShowTablet_2",
+    "animations/Stand/Gestures/ShowTablet_3", "animations/Stand/Gestures/This_1",
+    "animations/Stand/Gestures/This_2", "animations/Stand/Gestures/This_3"
+]
+GESTURE_FOOD = [
+    "animations/Stand/Gestures/Yum_1", "animations/Stand/Gestures/Give_4",
+    "animations/Stand/Gestures/Everything_1", "animations/Stand/Gestures/Enthusiastic_4"
+]
+GESTURE_COUNT_ALL = [
+    "animations/Stand/Gestures/Everything_1", "animations/Stand/Gestures/Everything_2",
+    "animations/Stand/Gestures/Everything_3", "animations/Stand/Gestures/Everything_4",
+    "animations/Stand/Gestures/CountTwo_1", "animations/Stand/Gestures/CountThree_1",
+    "animations/Stand/Gestures/Choice_1"
+]
+GESTURE_ENTHUSE = [
+    "animations/Stand/Gestures/Enthusiastic_4", "animations/Stand/Gestures/Enthusiastic_5",
+    "animations/Stand/Gestures/Joy_1", "animations/Stand/Gestures/Excited_1",
+    "animations/Stand/Gestures/Great_1"
+]
+GESTURE_STORY = [
+    "animations/Stand/Gestures/YouKnowWhat_1", "animations/Stand/Gestures/YouKnowWhat_2",
+    "animations/Stand/Gestures/YouKnowWhat_3", "animations/Stand/Gestures/YouKnowWhat_5",
+    "animations/Stand/Gestures/WhatSThis_1", "animations/Stand/Gestures/WhatSThis_2",
+    "animations/Stand/Gestures/This_4", "animations/Stand/Gestures/This_5"
+]
 GESTURE_EXPLAIN = [
     "animations/Stand/Gestures/Explain_1", "animations/Stand/Gestures/Explain_2",
     "animations/Stand/Gestures/Explain_3", "animations/Stand/Gestures/Explain_4",
     "animations/Stand/Gestures/Explain_5", "animations/Stand/Gestures/Explain_6",
-    "animations/Stand/Gestures/Explain_7", "animations/Stand/Gestures/Explain_8"
+    "animations/Stand/Gestures/Explain_7", "animations/Stand/Gestures/Explain_8",
+    "animations/Stand/Gestures/Explain_10", "animations/Stand/Gestures/Explain_11",
+    "animations/Stand/BodyTalk/Speaking/BodyTalk_1", "animations/Stand/BodyTalk/Speaking/BodyTalk_2",
+    "animations/Stand/BodyTalk/Speaking/BodyTalk_3", "animations/Stand/BodyTalk/Speaking/BodyTalk_4",
+    "animations/Stand/BodyTalk/Speaking/BodyTalk_5", "animations/Stand/BodyTalk/Speaking/BodyTalk_6"
 ]
-GESTURE_SHOW    = ["animations/Stand/Gestures/ShowTablet_1", "animations/Stand/Gestures/ShowTablet_2", "animations/Stand/Gestures/ShowTablet_3"]
-GESTURE_ENTHUSE = ["animations/Stand/Gestures/Enthusiastic_4", "animations/Stand/Gestures/Enthusiastic_5"]
+GESTURE_THINKING = [
+    "animations/Stand/Gestures/Thinking_1", "animations/Stand/Gestures/Thinking_3",
+    "animations/Stand/Gestures/Thinking_4", "animations/Stand/Gestures/Thinking_6"
+]
 
 INSTANT_CACHE = {
-    "hello":         "Hello! I am Laurimate, your campus assistant. How can I help you today?",
-    "hi":            "Hi there! How can I help you?",
-    "hey":           "Hey! What would you like to know about Laurea?",
-    "hey laurimate": "Hello! I am here and listening.",
-    "moi":           "Moi! Kuinka voin auttaa sinua tänään?",
-    "hei":           "Hei! Mitä haluaisit tietää Laureasta?",
-    "terve":         "Terve! Kuinka voin auttaa?",
-    "thank you":     "You are warmly welcome!",
-    "thanks":        "Happy to help!",
-    "kiitos":        "Ole hyvä! Autan mielelläni.",
-    "bye":           "Goodbye! Have a wonderful day at Laurea!",
-    "goodbye":       "Goodbye! See you soon!",
-    "näkemiin":      "Näkemiin! Hyvää päivänjatkoa Laureassa!",
-    "hei hei":       "Hei hei! Nähdään taas!"
+    "hello":             "Hello! I am Laurimate, your campus assistant. How can I help you today?",
+    "hi":                "Hi there! How can I help you?",
+    "hey":               "Hey! What would you like to know about Laurea?",
+    "hey laurimate":     "Hello! I am here and listening.",
+    "moi":               "Moi! Kuinka voin auttaa sinua tänään?",
+    "moikka":            "Moikka! Miten voin auttaa sinua?",
+    "moro":              "Moro! Mitä haluaisit tietää Laureasta?",
+    "hei":               "Hei! Mitä haluaisit tietää Laureasta?",
+    "heippa":            "Heippa! Kuinka voin auttaa?",
+    "terve":             "Terve! Kuinka voin auttaa?",
+    "huomenta":          "Hyvää huomenta! Kuinka voin auttaa sinua tänään?",
+    "hyvää huomenta":    "Hyvää huomenta! Miten voin auttaa?",
+    "päivää":            "Hyvää päivää! Kuinka voin auttaa?",
+    "hyvää päivää":      "Hyvää päivää! Kuinka voin auttaa sinua Laureassa?",
+    "mitä kuuluu":       "Kiitos, minulle kuuluu oikein hyvää! Entä sinulle, miten voin auttaa?",
+    "kuka sinä olet":    "Olen Laurimate, Laurean älykäs kampusrobotti. Rakesh ja Prasiddha ovat luoneet minut.",
+    "kuka olet":         "Olen Laurimate, Laurean kampusavustajarobotti.",
+    "puhutko suomea":    "Kyllä, puhun suomea ja englantia! Kysy vain mitä tahansa.",
+    "thank you":         "You are warmly welcome!",
+    "thanks":            "Happy to help!",
+    "kiitos":            "Ole hyvä! Autan mielelläni.",
+    "kiitti":            "Ole hyvä!",
+    "kiitoksia":         "Ole hyvä! Mukava olla avuksi.",
+    "paljon kiitoksia":  "Ole hyvä! Mukavaa päivää sinulle.",
+    "anteeksi":          "Ei mitään! Kuinka voin auttaa sinua?",
+    "bye":               "Goodbye! Have a wonderful day at Laurea!",
+    "goodbye":           "Goodbye! See you soon!",
+    "näkemiin":          "Näkemiin! Hyvää päivänjatkoa Laureassa!",
+    "nähdään":           "Nähdään taas! Mukavaa päivää!",
+    "hei hei":           "Hei hei! Nähdään taas!"
 }
 
 STOP_WORDS = set([
@@ -146,7 +243,7 @@ STOP_WORDS = set([
     "have", "has", "had", "having", "need", "want", "like", "know", "think", "find", "give",
     "tell", "show", "please", "thanks", "thank", "hey", "hi", "hello", "mate", "uh", "um", "oh", "well", "ok", "okay",
     "right", "now", "today", "currently", "just", "really", "very", "much", "many", "some", "any", "more", "also",
-    "laurea", "laurimate", "campus", "espoo", "leppavaara", "leppävaara",
+    "laurimate",
     "mitä", "missä", "milloin", "miten", "kuka", "miksi", "onko", "se", "ja", "ole", "on", "voitko", "kerro", "minulle"
 ])
 
@@ -296,15 +393,44 @@ CAMPUS_SYNONYMS = {
     "wifi": ["wifi", "eduroam", "wireless", "network"],
     "internet": ["wifi", "eduroam", "network"],
     "password": ["password", "eduroam", "credentials", "login"],
+    "salasana": ["password", "eduroam", "credentials", "login"],
+    "verkko": ["wifi", "eduroam", "wireless", "network"],
     "toilet": ["restroom", "toilet", "accessible"],
     "bathroom": ["restroom", "toilet", "accessible"],
     "wc": ["restroom", "toilet"],
+    "vessa": ["restroom", "toilet", "accessible"],
     "canteen": ["restaurant", "lunch", "cafeteria", "menu", "tuudo"],
     "cafeteria": ["restaurant", "lunch", "cafeteria", "menu", "tuudo"],
     "food": ["restaurant", "lunch", "menu", "cafe", "tuudo"],
     "eat": ["restaurant", "lunch", "menu"],
+    "ruokala": ["restaurant", "lunch", "cafeteria", "menu", "tuudo"],
+    "ravintola": ["restaurant", "lunch", "cafeteria", "menu", "tuudo"],
+    "ruoka": ["restaurant", "lunch", "menu", "tuudo"],
+    "ruokalista": ["restaurant", "lunch", "menu", "tuudo"],
+    "lounas": ["restaurant", "lunch", "menu", "tuudo"],
+    "kahvila": ["cafe", "cafeteria", "restaurant", "lunch"],
+    "kirjasto": ["library", "book", "borrow", "study", "tuudo"],
+    "opintotoimisto": ["student", "services", "office", "study", "affairs", "pakki"],
+    "aulapalvelut": ["reception", "lobby", "entrance", "services"],
+    "lukujärjestys": ["timetable", "schedule", "tuudo", "pakki"],
+    "lukujarjestys": ["timetable", "schedule", "tuudo", "pakki"],
+    "opiskelijakortti": ["student", "card", "tuudo", "discount", "lunch"],
+    "pysäköinti": ["parking", "car", "park", "permit"],
+    "pysakointi": ["parking", "car", "park", "permit"],
+    "osoite": ["address", "vanha", "maantie", "location", "espoo"],
+    "aukioloajat": ["opening", "hours", "open", "close", "door"],
+    "juna": ["train", "station", "leppavaara", "walk", "hsl"],
     "train": ["station", "leppavaara", "walk", "hsl"],
+    "bussi": ["buses", "hsl", "terminal", "station"],
     "bus": ["buses", "hsl", "terminal", "station"],
+    "leppävaara": ["leppavaara", "vanha", "maantie", "espoo", "campus", "station"],
+    "leppavaara": ["leppavaara", "vanha", "maantie", "espoo", "campus", "station"],
+    "tikkurila": ["tikkurila", "vantaa", "campus", "ratatie"],
+    "otaniemi": ["otaniemi", "espoo", "campus", "metsanpojankuja"],
+    "hyvinkää": ["hyvinkaa", "campus", "udenmaankatu"],
+    "hyvinkaa": ["hyvinkaa", "campus", "udenmaankatu"],
+    "porvoo": ["porvoo", "campus", "taidetehtaankatu"],
+    "lohja": ["lohja", "campus", "nummenkatu"],
 }
 
 
@@ -556,23 +682,33 @@ def gather_web_sources(question):
 # Tablet UI Helpers
 # ==================================================================
 
+def _ensure_webview_layer_on_top(tablet):
+    """Brings the loaded WebView layer to the foreground without reloading the page."""
+    if tablet and not os.path.exists("/tmp/laurimate_kids_webview_v6.flag"):
+        try: tablet.showWebview()
+        except Exception: pass
+
 def set_welcome(tablet):
     if tablet:
+        _ensure_webview_layer_on_top(tablet)
         try: tablet.executeJS("showWelcome();")
         except Exception: pass
 
 def set_listening(tablet):
     if tablet:
+        _ensure_webview_layer_on_top(tablet)
         try: tablet.executeJS("showListening();")
         except Exception: pass
 
 def set_thinking(tablet):
     if tablet:
+        _ensure_webview_layer_on_top(tablet)
         try: tablet.executeJS("showThinking();")
         except Exception: pass
 
 def set_transcript(tablet, transcript):
     if tablet and transcript:
+        _ensure_webview_layer_on_top(tablet)
         try:
             t_js = to_utf8(transcript).replace("\\", "\\\\").replace("'", "\\'")
             tablet.executeJS("showTranscript('{}');".format(t_js))
@@ -580,6 +716,7 @@ def set_transcript(tablet, transcript):
 
 def set_answer(tablet, question, answer, source="ai"):
     if tablet:
+        _ensure_webview_layer_on_top(tablet)
         try:
             q_js = to_utf8(question).replace("\\", "\\\\").replace("'", "\\'")
             a_js = to_utf8(answer).replace("\\", "\\\\").replace("'", "\\'")
@@ -588,6 +725,7 @@ def set_answer(tablet, question, answer, source="ai"):
 
 def set_no_speech(tablet):
     if tablet:
+        _ensure_webview_layer_on_top(tablet)
         try: tablet.executeJS("showNoSpeech();")
         except Exception: pass
 
@@ -606,38 +744,283 @@ def play_gesture_async(animation_player, gesture_path):
 
 
 # ==================================================================
-# Finnish Speech Recognition Hints & Normalizer
+# Finnish Speech Recognition Hints, Samples & Fast Phonetic Normalizer
 # ==================================================================
 
 FINNISH_PHRASE_HINTS = [
-    "Laurea", "Laurimate", "Leppävaara", "Leppavaara", "Leppävaaran", "Leppävaarassa", "Leppävaaraan",
-    "Tikkurila", "Tikurilla", "Tikkurilan", "Tikkurilassa", "Tikkurilaan",
-    "Otaniemi", "Otaniemen", "Otaniemessä", "Otaniemeen",
-    "Hyvinkää", "Hyvinkaa", "Hyvinkään", "Hyvinkäällä",
-    "Porvoo", "Porvoon", "Porvoossa", "Lohja", "Lohjan", "Lohjalla",
-    "Vanha maantie", "eduroam", "Tuudo", "Moodle", "Pakki",
-    "kirjasto", "ruokala", "ravintola", "opintotoimisto", "vessa",
-    "pysäköinti", "lukujärjestys", "opiskelija", "opiskelijakortti",
-    "terve", "päivää", "huomenta", "kiitos", "näkemiin", "anteeksi",
-    "moi", "hei", "mitä", "missä", "milloin", "miten", "kuka", "onko", "voitko"
+    # Campuses & phonetic variants
+    "Laurea", "Lauria", "Loria", "Laurean", "Laureassa", "Laureasta",
+    "Laurimate", "Lauri mate",
+    "Leppävaara", "Leppavaara", "Leppavara", "Lepavara", "Leppa vaara",
+    "Leppävaaran", "Leppävaarassa", "Leppävaaraan", "Leppavaaran",
+    "Tikkurila", "Tikurilla", "Tikkurilla", "Tikurila", "Tiku rila",
+    "Tikkurilan", "Tikkurilassa", "Tikkurilaan",
+    "Otaniemi", "Ota niemi", "Otaniemen", "Otaniemessä", "Otaniemeen",
+    "Hyvinkää", "Hyvinkaa", "Hyvinka", "Huvinka", "Hyvinkään", "Hyvinkäällä",
+    "Porvoo", "Porvo", "Porvoon", "Porvoossa",
+    "Lohja", "Lohya", "Lohjan", "Lohjalla",
+    # Cities, streets & transport
+    "Espoo", "Espoon", "Espoossa", "Vantaa", "Vantaan", "Vantaalla",
+    "Helsinki", "Helsingin", "Vanha maantie", "Vanha maantie 9", "HSL",
+    # Campus systems & student life
+    "eduroam", "Tuudo", "Tudo", "Moodle", "Pakki", "Paki",
+    "Laureamko", "BarLaurea", "Bar Laurea", "Kela", "HOAS", "AMK",
+    # Common Finnish campus nouns
+    "kirjasto", "kirjastossa", "ruokala", "ravintola", "ruokalista", "lounas", "kahvila",
+    "opintotoimisto", "aulapalvelut", "vessa", "pysäköinti", "lukujärjestys",
+    "opiskelija", "opiskelijakortti", "osoite", "aukioloajat", "juna", "bussi",
+    # Common Finnish greetings & question starters
+    "terve", "päivää", "hyvää päivää", "huomenta", "hyvää huomenta",
+    "kiitos", "kiitti", "kiitoksia", "paljon kiitoksia", "ole hyvä",
+    "näkemiin", "nähdään", "hei hei", "anteeksi",
+    "moi", "moikka", "moro", "hei", "heippa",
+    "mitä", "mitä kuuluu", "missä", "missä on", "milloin", "miten",
+    "kuka", "kuka olet", "onko", "voitko", "puhutko suomea", "kello", "sää"
+]
+
+# Direct multi-word & single-word spoken mishearing samples -> Canonical Finnish word
+FINNISH_RECOGNITION_SAMPLES = [
+    # Leppävaara samples (hardest Finnish word for English STT)
+    ("leppa vaara", "Leppävaara"), ("lepa vaara", "Leppävaara"), ("lepa vara", "Leppävaara"),
+    ("leppa vara", "Leppävaara"), ("lipa vara", "Leppävaara"), ("lipa vaara", "Leppävaara"),
+    ("leppä vaara", "Leppävaara"), ("let the vara", "Leppävaara"), ("leopard vara", "Leppävaara"),
+    ("leppa bar", "Leppävaara"), ("lepa bar", "Leppävaara"), ("leppavara", "Leppävaara"),
+    ("lepavara", "Leppävaara"), ("lepavaara", "Leppävaara"), ("leppavaara", "Leppävaara"),
+    ("leppavaaran", "Leppävaara"), ("leppavarassa", "Leppävaara"), ("leppavaar", "Leppävaara"),
+
+    # Tikkurila samples
+    ("tiku rila", "Tikkurila"), ("tiku rilla", "Tikkurila"), ("tikka rilla", "Tikkurila"),
+    ("tikka rila", "Tikkurila"), ("tequila campus", "Tikkurila campus"),
+    ("tikurilla", "Tikkurila"), ("tikkurilla", "Tikkurila"), ("tikurila", "Tikkurila"),
+    ("ticorila", "Tikkurila"), ("tecurila", "Tikkurila"), ("tickrila", "Tikkurila"),
+    ("tikorila", "Tikkurila"), ("tikurilan", "Tikkurila"), ("tikkuril", "Tikkurila"),
+
+    # Laurea & Laurimate samples
+    ("lauri mate", "Laurimate"), ("laurie mate", "Laurimate"), ("lori mate", "Laurimate"),
+    ("laurea mate", "Laurimate"), ("lory mate", "Laurimate"), ("lauramite", "Laurimate"),
+    ("bar laura", "BarLaurea"), ("bar loria", "BarLaurea"), ("bar lauria", "BarLaurea"),
+    ("bar laurea", "BarLaurea"),
+    ("laurea amko", "Laureamko"), ("lauriamko", "Laureamko"), ("lauramko", "Laureamko"),
+    ("loriamko", "Laureamko"),
+    ("lauria", "Laurea"), ("laura", "Laurea"), ("loria", "Laurea"), ("lorea", "Laurea"),
+    ("lorya", "Laurea"), ("gloria campus", "Laurea campus"), ("lowry", "Laurea"),
+    ("lauriam", "Laurea"), ("lauream", "Laurea"),
+
+    # Otaniemi, Hyvinkää, Porvoo, Lohja, Vanha maantie
+    ("ota niemi", "Otaniemi"), ("otta niemi", "Otaniemi"), ("ota nimi", "Otaniemi"),
+    ("otanimi", "Otaniemi"), ("autoniemi", "Otaniemi"), ("atanimi", "Otaniemi"),
+    ("hyvinkaa", "Hyvinkää"), ("hyvinka", "Hyvinkää"), ("huvinka", "Hyvinkää"),
+    ("huvinkaa", "Hyvinkää"), ("hivinka", "Hyvinkää"), ("hivinkaa", "Hyvinkää"),
+    ("hyvinga", "Hyvinkää"), ("hoovinka", "Hyvinkää"), ("heavinka", "Hyvinkää"),
+    ("porvo", "Porvoo"), ("poorvo", "Porvoo"), ("poorvoo", "Porvoo"), ("borvo", "Porvoo"),
+    ("lohya", "Lohja"), ("loja", "Lohja"), ("loya", "Lohja"),
+    ("vanha mantie", "Vanha maantie"), ("vana mantie", "Vanha maantie"),
+    ("vanha monty", "Vanha maantie"), ("vanha man tie", "Vanha maantie"),
+
+    # Systems & common Finnish words
+    ("edu roam", "eduroam"), ("edu room", "eduroam"), ("eduroom", "eduroam"),
+    ("eduram", "eduroam"), ("edurom", "eduroam"),
+    ("to do app", "Tuudo"), ("todo app", "Tuudo"), ("two do", "Tuudo"), ("tudo", "Tuudo"),
+    ("paki", "Pakki"), ("pucky", "Pakki"), ("packy", "Pakki"),
+    ("opinto toimisto", "opintotoimisto"), ("luku järjestys", "lukujärjestys"),
+    ("lukujarjestys", "lukujärjestys"), ("pysakointi", "pysäköinti"),
+    ("nakemiin", "näkemiin"), ("nahdaan", "nähdään"), ("kito", "kiitos"), ("kitos", "kiitos"),
 ]
 
 FINNISH_CORRECTIONS = [
-    (re.compile(r'\blep+[aä]?v[aä]+r[aä]+n?\b', re.I), "Leppävaara"),
-    (re.compile(r'\btik+ur[il]+a+n?\b', re.I), "Tikkurila"),
-    (re.compile(r'\b(laura|lauria|loria)\b', re.I), "Laurea"),
-    (re.compile(r'\bhyvink[aä]{1,2}n?\b', re.I), "Hyvinkää"),
-    (re.compile(r'\botan[ie]min?\b', re.I), "Otaniemi"),
-    (re.compile(r'\bedu\s*ro[amn]{2,3}\b', re.I), "eduroam"),
-    (re.compile(r'\btudo\b', re.I), "Tuudo"),
+    (re.compile(r'\blep+\s*[aäe]?\s*v+[aä]+r+[aä]*(?:n|ssa|ssä|sta|stä|lla|llä|lle|aan|ään)?\b', re.I), "Leppävaara"),
+    (re.compile(r'\btik+\s*u?\s*r+\s*[il]+a+(?:n|ssa|sta|lla|lle|an)?\b', re.I), "Tikkurila"),
+    (re.compile(r'\b(laura|lauria|loria|lorea|lorya|laurean|laureassa|laureasta|laureaan)\b', re.I), "Laurea"),
+    (re.compile(r'\b(h[uy]vink+[aäe]{1,2}(?:n|llä|lla|lle|ltä)?|h[iu]vinka+)\b', re.I), "Hyvinkää"),
+    (re.compile(r'\botan\s*[ie]+m+[ie]+(?:n|ssä|ssa|stä|emeen)?\b', re.I), "Otaniemi"),
+    (re.compile(r'\bporvo+(?:n|ssa|sta|seen)?\b', re.I), "Porvoo"),
+    (re.compile(r'\bloh[jy]a+(?:n|lla|lta|lle)?\b', re.I), "Lohja"),
+    (re.compile(r'\bedu\s*ro[aomnu]{2,4}\b', re.I), "eduroam"),
+    (re.compile(r'\btu+do+(?:n|ssa|sta)?\b', re.I), "Tuudo"),
+    (re.compile(r'\bpak+i(?:n|ssa|sta)?\b', re.I), "Pakki"),
+    (re.compile(r'\blaure?a?mko(?:n|ssa)?\b', re.I), "Laureamko"),
 ]
 
+# Canonical targets for fast phonetic-skeleton fuzzy matching
+FINNISH_PHONETIC_TARGETS = [
+    ("lepavara",      "Leppävaara"),
+    ("lepavaran",     "Leppävaara"),
+    ("lepavarasa",    "Leppävaara"),
+    ("tikurila",      "Tikkurila"),
+    ("tikurilan",     "Tikkurila"),
+    ("tikurilasa",    "Tikkurila"),
+    ("laurea",        "Laurea"),
+    ("laurean",       "Laurea"),
+    ("laureasa",      "Laurea"),
+    ("laurimate",     "Laurimate"),
+    ("otaniemi",      "Otaniemi"),
+    ("otaniemen",     "Otaniemi"),
+    ("huvinka",       "Hyvinkää"),
+    ("huvinkan",      "Hyvinkää"),
+    ("porvo",         "Porvoo"),
+    ("porvon",        "Porvoo"),
+    ("lohja",         "Lohja"),
+    ("lohya",         "Lohja"),
+    ("laureamko",     "Laureamko"),
+    ("barlaurea",     "BarLaurea"),
+    ("eduroam",       "eduroam"),
+    ("tudo",          "Tuudo"),
+    ("paki",          "Pakki"),
+    ("kirjasto",      "kirjasto"),
+    ("ravintola",     "ravintola"),
+    ("ruokala",       "ruokala"),
+    ("opintotoimisto","opintotoimisto"),
+    ("lukujarjestus", "lukujärjestys"),
+    ("opiskelijakorti","opiskelijakortti"),
+    ("pusakointi",    "pysäköinti"),
+    ("kitos",         "kiitos"),
+    ("nakemin",       "näkemiin"),
+    ("huomenta",      "huomenta"),
+]
+
+FINNISH_ONLY_INDICATORS = set([
+    "moi", "moikka", "moro", "hei", "heippa", "terve", "huomenta", "päivää",
+    "kiitos", "kiitti", "kiitoksia", "näkemiin", "nähdään", "anteeksi",
+    "mitä", "missä", "milloin", "miten", "kuka", "miksi", "mikä", "onko", "voitko",
+    "kerro", "minulle", "kuuluu", "kirjasto", "ravintola", "ruokala", "ruokalista",
+    "lounas", "kahvila", "opintotoimisto", "lukujärjestys", "opiskelijakortti",
+    "pysäköinti", "vessa", "osoite", "aukioloajat", "juna", "bussi", "kello", "sää"
+])
+
+ENGLISH_SENTENCE_INDICATORS = set([
+    "what", "where", "when", "how", "who", "which", "why", "is", "are", "can", "could",
+    "tell", "show", "give", "find", "the", "to", "in", "at", "for", "from", "about", "please"
+])
+
+
+def _phonetic_finnish_skeleton(word):
+    """
+    Reduces a spoken word to its Finnish phonetic skeleton:
+    - Lowercases UTF-8
+    - Maps ä->a, ö->o, å->o, y->u, w->v, c->k, q->k
+    - Collapses repeated adjacent letters (e.g. 'leppävaara' -> 'lepavara', 'tikurilla' -> 'tikurila')
+    """
+    if not word:
+        return ""
+    w = to_utf8(word).lower()
+    w = w.replace("\xc3\xa4", "a").replace("\xc3\xb6", "o").replace("\xc3\xa5", "o")
+    w = w.replace("\xc3\x84", "a").replace("\xc3\x96", "o").replace("\xc3\x85", "o")
+    out = []
+    for ch in w:
+        if ch == "y": ch = "u"
+        elif ch == "w": ch = "v"
+        elif ch in ("c", "q"): ch = "k"
+        if ch.isalnum():
+            if not out or out[-1] != ch:
+                out.append(ch)
+    return "".join(out)
+
+
+def _edit_distance_le1(a, b):
+    """Fast check whether string a and string b have Levenshtein edit distance <= 1."""
+    if a == b:
+        return True
+    la, lb = len(a), len(b)
+    if abs(la - lb) > 1:
+        return False
+    if la == lb:
+        diffs = sum(1 for x, y in zip(a, b) if x != y)
+        return diffs <= 1
+    if la > lb:
+        a, b, la, lb = b, a, lb, la
+    # la + 1 == lb
+    i = j = diffs = 0
+    while i < la and j < lb:
+        if a[i] == b[j]:
+            i += 1
+            j += 1
+        else:
+            diffs += 1
+            if diffs > 1:
+                return False
+            j += 1
+    return True
+
+
+def _fuzzy_match_finnish_token(token):
+    """Snaps an individual word token to a canonical Finnish word if its phonetic skeleton matches."""
+    clean = re.sub(r'[^\w\xc3\xa4\xc3\xb6\xc3\xa5\xc3\x84\xc3\x96\xc3\x85]', '', to_utf8(token))
+    if len(clean) < 4 or clean.lower() in ENGLISH_SENTENCE_INDICATORS:
+        return None
+    skel = _phonetic_finnish_skeleton(clean)
+    if len(skel) < 4:
+        return None
+    for target_skel, canonical in FINNISH_PHONETIC_TARGETS:
+        if skel == target_skel:
+            return canonical
+        # Allow 1-character phonetic tolerance on longer Finnish words (e.g. leppavaara, tikkurila, hyvinkää, otaniemi)
+        if len(target_skel) >= 6 and len(skel) >= 5 and skel[0] == target_skel[0] and _edit_distance_le1(skel, target_skel):
+            return canonical
+    return None
+
+
 def normalize_finnish_words(text):
+    """
+    3-Stage Fast Finnish Word Normalizer:
+      1) Multi-word & known phrase sample replacement (FINNISH_RECOGNITION_SAMPLES)
+      2) Regex inflection & phonetic pattern replacement (FINNISH_CORRECTIONS)
+      3) Token-level Finnish phonetic skeleton fuzzy matching (FINNISH_PHONETIC_TARGETS)
+    """
     if not text:
         return ""
+    text = to_utf8(text)
+
+    # Stage 1: Multi-word and exact sample replacements
+    for sample, canonical in FINNISH_RECOGNITION_SAMPLES:
+        pattern = re.compile(r'\b' + re.escape(sample) + r'\b', re.I)
+        text = pattern.sub(canonical, text)
+
+    # Stage 2: Regex pattern replacements
     for pattern, replacement in FINNISH_CORRECTIONS:
         text = pattern.sub(replacement, text)
-    return text
+
+    # Stage 3: Token-level fuzzy phonetic skeleton snapping
+    tokens = text.split()
+    out_tokens = []
+    for tok in tokens:
+        m = re.match(r'^([^\w]*)([\w\xc3\xa4\xc3\xb6\xc3\xa5\xc3\x84\xc3\x96\xc3\x85]+)([^\w]*)$', tok)
+        if m:
+            prefix, word, suffix = m.group(1), m.group(2), m.group(3)
+            matched_canonical = _fuzzy_match_finnish_token(word)
+            if matched_canonical:
+                out_tokens.append(prefix + matched_canonical + suffix)
+                continue
+        out_tokens.append(tok)
+
+    return " ".join(out_tokens)
+
+
+def _score_finnish_alternative(transcript_text):
+    """Scores an STT alternative higher if it contains recognized Finnish campus/vocabulary words."""
+    norm = normalize_finnish_words(transcript_text)
+    words = [w.lower() for w in re.findall(r'[\w\xc3\xa4\xc3\xb6\xc3\xa5]+', norm)]
+    bonus = 0
+    high_value = set([c.lower() for _, c in FINNISH_PHONETIC_TARGETS]) | FINNISH_ONLY_INDICATORS
+    for w in words:
+        if w in high_value:
+            bonus += 15
+    return bonus, norm
+
+
+def _detect_effective_language(normalized_text, google_lang_code):
+    """
+    Determines whether the user spoke Finnish ('fi') or English ('en').
+    Even if Google STT tags a short Finnish utterance as 'en-US', switches to 'fi'
+    when unmistakable Finnish words are present and no English sentence words exist.
+    """
+    if "fi" in to_utf8(google_lang_code).lower():
+        return "fi"
+    words = set(re.findall(r'[\w\xc3\xa4\xc3\xb6\xc3\xa5]+', to_utf8(normalized_text).lower()))
+    has_fi_words = bool(words.intersection(FINNISH_ONLY_INDICATORS))
+    has_en_words = bool(words.intersection(ENGLISH_SENTENCE_INDICATORS))
+    if has_fi_words and not has_en_words:
+        return "fi"
+    return "en"
 
 
 # ==================================================================
@@ -647,7 +1030,8 @@ def normalize_finnish_words(text):
 def transcribe_audio_google(wav_bytes):
     """
     Transcribe complete utterance using Google Cloud Speech-to-Text.
-    Supports English & Finnish simultaneously with heavy phrase biasing (boost=20.0).
+    Supports English & Finnish simultaneously with heavy phrase biasing (boost=20.0),
+    multi-alternative Finnish word scoring, and 3-stage phonetic normalization.
     """
     try:
         url = "https://speech.googleapis.com/v1/speech:recognize?key=" + GOOGLE_STT_KEY
@@ -658,6 +1042,7 @@ def transcribe_audio_google(wav_bytes):
                 "sampleRateHertz": SAMPLE_RATE,
                 "languageCode": "en-US",
                 "alternativeLanguageCodes": ["fi-FI"],
+                "maxAlternatives": 3,
                 "speechContexts": [{
                     "phrases": FINNISH_PHRASE_HINTS,
                     "boost": 20.0
@@ -675,13 +1060,26 @@ def transcribe_audio_google(wav_bytes):
         if not results:
             return "", "en"
 
-        alt = results[0].get("alternatives", [{}])[0]
-        raw_transcript = to_utf8(alt.get("transcript", "")).strip()
-        lang = to_utf8(results[0].get("languageCode", "en-US"))
-        lang_short = "fi" if "fi" in lang.lower() else "en"
+        alternatives = results[0].get("alternatives", [{}])
+        raw_transcript = to_utf8(alternatives[0].get("transcript", "")).strip()
 
-        # Apply phonetic normalization for campus names
-        transcript = normalize_finnish_words(raw_transcript)
+        # Pick the best alternative (preferring alternatives that match our Finnish words collection)
+        best_norm = normalize_finnish_words(raw_transcript)
+        best_score = -1
+        for idx, alt in enumerate(alternatives):
+            cand_raw = to_utf8(alt.get("transcript", "")).strip()
+            if not cand_raw:
+                continue
+            fi_bonus, cand_norm = _score_finnish_alternative(cand_raw)
+            # Rank primary alternative slightly higher unless a secondary alternative caught a Finnish keyword
+            total_score = fi_bonus - (idx * 5)
+            if total_score > best_score:
+                best_score = total_score
+                best_norm = cand_norm
+
+        transcript = best_norm
+        lang = to_utf8(results[0].get("languageCode", "en-US"))
+        lang_short = _detect_effective_language(transcript, lang)
 
         print("[Laurimate] Transcribed: '{}' (Normalized: '{}', Lang: {})".format(raw_transcript, transcript, lang_short))
         return transcript, lang_short
@@ -911,7 +1309,7 @@ def _llm_chat(system_text, user_text, max_tokens=220):
                 "messages": [{"role": "system", "content": system_text}, {"role": "user", "content": user_text}],
                 "temperature": 0.1,
                 "reasoning_effort": "low",
-                "max_tokens": max(max_tokens, 700)
+                "max_tokens": max(max_tokens, 1200)
             }, ensure_ascii=False).encode("utf-8")
             cmd = ["curl", "-k", "-s", "--max-time", "10", "-X", "POST",
                    "https://api.groq.com/openai/v1/chat/completions",
@@ -1141,9 +1539,20 @@ class SmoothAudioListener(ALModule):
         self.module_name = name
         self.tablet = tablet_proxy
         self.audio = ALProxy("ALAudioDevice", PEPPER_IP, PEPPER_PORT)
+        try:
+            self.tts_proxy = ALProxy("ALTextToSpeech", PEPPER_IP, PEPPER_PORT)
+        except Exception:
+            self.tts_proxy = None
         self.utterance_queue = Queue.Queue()
 
         self.muted = False
+        self.pepper_speaking = False
+        self.speaking_started_at = 0.0
+        self.barge_in_echo_clear_until = 0.0
+        self.tts_echo_floor = 5500.0
+        self.barge_in_accum = 0.0
+        self.barge_in_triggered = False
+
         self.is_recording = False
         self.noise_floor = 350.0
 
@@ -1158,7 +1567,7 @@ class SmoothAudioListener(ALModule):
     def start(self):
         self.audio.setClientPreferences(self.module_name, SAMPLE_RATE, AUDIO_CHANNEL, 0)
         self.audio.subscribe(self.module_name)
-        print("[Laurimate] Audio stream subscribed (16 kHz, Front Mic).")
+        print("[Laurimate] Audio stream subscribed (16 kHz, Front Mic, Smart Barge-In active).")
 
     def stop(self):
         try:
@@ -1167,25 +1576,130 @@ class SmoothAudioListener(ALModule):
         except Exception:
             pass
 
+    def flush_queue(self):
+        while not self.utterance_queue.empty():
+            try:
+                self.utterance_queue.get_nowait()
+            except Exception:
+                break
+
     def set_muted(self, muted):
         self.muted = muted
         if muted:
+            self.pepper_speaking = False
             self.is_recording = False
             self.preroll.clear()
             self.preroll_duration = 0.0
             self.recorded_frames = []
             self.speech_start_accum = 0.0
             self.silence_accum = 0.0
+            self.barge_in_accum = 0.0
+
+    def set_pepper_speaking(self, speaking):
+        """
+        Enables/disables smart barge-in monitoring while Pepper is speaking an answer.
+        Never stops answering unless someone speaks loudly and continuously right to Pepper.
+        """
+        if speaking:
+            self.muted = False
+            self.is_recording = False
+            self.barge_in_triggered = False
+            self.barge_in_accum = 0.0
+            self.tts_echo_floor = 5500.0
+            self.speaking_started_at = time.time()
+            self.preroll.clear()
+            self.preroll_duration = 0.0
+            self.recorded_frames = []
+            self.speech_start_accum = 0.0
+            self.silence_accum = 0.0
+            self.pepper_speaking = True
+        else:
+            self.pepper_speaking = False
+            self.barge_in_accum = 0.0
+            if not self.is_recording:
+                self.preroll.clear()
+                self.preroll_duration = 0.0
+                self.speech_start_accum = 0.0
+                self.silence_accum = 0.0
+
+    def _is_voice_like_frame(self, buf, dur):
+        """Checks zero-crossing rate to distinguish human voice from thumps, bumps, or clicks."""
+        if dur <= 0:
+            return False
+        try:
+            crossings_per_sec = float(audioop.cross(buf, 2)) / dur
+            # Human speech fundamental + formants at 16kHz typically have 180..3200 zero-crossings/sec
+            return 160.0 <= crossings_per_sec <= 3400.0
+        except Exception:
+            return True
 
     def processRemote(self, nbOfChannels, nbOfSamplesByChannel, timeStamp, inputBuffer):
         if self.muted:
+            return
+
+        now_ts = time.time()
+        if now_ts < self.barge_in_echo_clear_until:
             return
 
         buf = str(inputBuffer)
         dur = float(nbOfChannels and nbOfSamplesByChannel) / float(SAMPLE_RATE)
         rms = audioop.rms(buf, 2)
 
-        threshold = max(self.noise_floor * 2.2, 550.0)
+        # --------------------------------------------------------------
+        # Mode A: Pepper is currently speaking -> Barge-In on User Speech
+        # --------------------------------------------------------------
+        if self.pepper_speaking:
+            elapsed_speaking = now_ts - self.speaking_started_at
+            if elapsed_speaking < BARGE_IN_GRACE_S:
+                self.tts_echo_floor = min(max(self.tts_echo_floor * 0.85 + 0.15 * float(rms), 4500.0), 7500.0)
+                return
+
+            barge_threshold = max(self.tts_echo_floor * 1.35, BARGE_IN_MIN_RMS)
+            is_voice = self._is_voice_like_frame(buf, dur)
+
+            if rms > barge_threshold and is_voice:
+                self.barge_in_accum += dur
+                if self.barge_in_accum >= BARGE_IN_SUSTAIN_S:
+                    # Human speech interruption confirmed!
+                    # Stop TTS immediately and ignore 0.25s of audio so Pepper's own TTS words
+                    # are never recorded into the user's new question.
+                    self.pepper_speaking = False
+                    self.barge_in_triggered = True
+                    self.barge_in_accum = 0.0
+                    self.flush_queue()
+                    self.preroll.clear()
+                    self.preroll_duration = 0.0
+
+                    if self.tts_proxy:
+                        try:
+                            self.tts_proxy.post.stopAll()
+                        except Exception:
+                            pass
+
+                    self.barge_in_echo_clear_until = time.time() + 0.25
+                    self.is_recording = True
+                    self.silence_accum = -0.75
+                    self.total_recorded_duration = 0.0
+                    self.recorded_frames = []
+
+                    set_listening(self.tablet)
+                    print("[Laurimate] Instant Barge-In Detected (RMS={:.0f}, BargeThresh={:.0f}) -> Interrupting answer & listening!".format(
+                        rms, barge_threshold
+                    ))
+            else:
+                self.barge_in_accum = max(0.0, self.barge_in_accum - dur * 2.4)
+                if rms < barge_threshold:
+                    self.tts_echo_floor = 0.94 * self.tts_echo_floor + 0.06 * float(rms)
+                    self.tts_echo_floor = min(max(self.tts_echo_floor, 4500.0), 7500.0)
+            return
+
+        # --------------------------------------------------------------
+        # Mode B: Standard Idle / Full-Question Recording VAD
+        #   Uses dual-threshold hysteresis so Pepper listens to the
+        #   WHOLE question and never splits words mid-sentence!
+        # --------------------------------------------------------------
+        start_threshold = max(self.noise_floor * 2.3, 650.0)
+        hold_threshold  = max(self.noise_floor * 1.45, 380.0)
 
         if not self.is_recording:
             self.noise_floor = 0.96 * self.noise_floor + 0.04 * float(rms)
@@ -1197,7 +1711,7 @@ class SmoothAudioListener(ALModule):
                 old_buf, old_dur = self.preroll.popleft()
                 self.preroll_duration -= old_dur
 
-            if rms > threshold:
+            if rms > start_threshold and self._is_voice_like_frame(buf, dur):
                 self.speech_start_accum += dur
                 if self.speech_start_accum >= START_THRESHOLD_S:
                     self.is_recording = True
@@ -1207,26 +1721,29 @@ class SmoothAudioListener(ALModule):
                     for b in self.preroll:
                         self.total_recorded_duration += b[1]
                     set_listening(self.tablet)
-                    print("[Laurimate] Speech detected (RMS={:.0f}, Threshold={:.0f}) -> Listening...".format(rms, threshold))
+                    print("[Laurimate] Speech detected (RMS={:.0f}, StartThresh={:.0f}) -> Listening to full question...".format(rms, start_threshold))
             else:
-                self.speech_start_accum = 0.0
+                self.speech_start_accum = max(0.0, self.speech_start_accum - dur * 1.5)
 
         else:
             self.recorded_frames.append(buf)
             self.total_recorded_duration += dur
 
-            if rms < threshold:
+            # Hysteresis: once speaking has started, any voice energy above hold_threshold resets silence timer
+            if rms < hold_threshold:
                 self.silence_accum += dur
             else:
-                self.silence_accum = 0.0
+                self.silence_accum = max(0.0, min(self.silence_accum, 0.0))
 
             if self.silence_accum >= SILENCE_TIMEOUT_S or self.total_recorded_duration >= MAX_RECORD_SEC:
                 self.is_recording = False
-                set_thinking(self.tablet)
-                active_speech_dur = self.total_recorded_duration - self.silence_accum
+                active_speech_dur = self.total_recorded_duration - max(0.0, self.silence_accum)
 
                 if active_speech_dur >= MIN_SPEECH_SEC:
-                    print("[Laurimate] Utterance complete ({:.1f}s speech) -> Processing...".format(active_speech_dur))
+                    # Mute listener while Pepper is Thinking/Processing so room noises never cancel the answer!
+                    self.muted = True
+                    set_thinking(self.tablet)
+                    print("[Laurimate] Full question complete ({:.1f}s speech) -> Processing...".format(active_speech_dur))
                     wav_data = self._pcm_to_wav("".join(self.recorded_frames))
                     self.utterance_queue.put(wav_data)
                 else:
@@ -1260,12 +1777,143 @@ class LaurimateController(object):
         self.listener = listener
 
         self.tts = ALProxy("ALTextToSpeech", PEPPER_IP, PEPPER_PORT)
+        try:
+            self.tts.setVolume(0.75)
+        except Exception:
+            pass
         self.animated_speech = ALProxy("ALAnimatedSpeech", PEPPER_IP, PEPPER_PORT)
         self.animation_player = ALProxy("ALAnimationPlayer", PEPPER_IP, PEPPER_PORT)
+        try:
+            self.motion = ALProxy("ALMotion", PEPPER_IP, PEPPER_PORT)
+        except Exception:
+            self.motion = None
 
         self.session_active = False
         self.idle_timer = None
         self.running = True
+        self.recent_gestures = collections.deque(maxlen=6)
+
+    def _pick_unique_gesture(self, pool):
+        """Picks a gesture from pool without repeating any of the last 6 gestures used."""
+        if not pool:
+            return "animations/Stand/Gestures/Explain_1"
+        if isinstance(pool, string_types):
+            return pool
+        fresh = [g for g in pool if g not in self.recent_gestures]
+        chosen = random.choice(fresh if fresh else pool)
+        self.recent_gestures.append(chosen)
+        return chosen
+
+    def _select_gesture_pool_for_sentence(self, sentence, question="", is_first=False, is_last=False):
+        """
+        Matches the exact meaning of a spoken sentence (plus question context)
+        to the most natural Pepper hand sign category.
+        """
+        s_low = to_utf8(sentence).lower()
+        q_low = to_utf8(question).lower()
+
+        # 1. Farewells / Goodbyes
+        if any(w in s_low for w in ["goodbye", "see you", "have a wonderful day", "näkemiin", "nähdään", "hei hei", "päivänjatkoa"]):
+            return GESTURE_BYE
+
+        # 2. Greetings / Hello
+        if any(w in s_low for w in ["hello!", "hi there", "hey!", "moi!", "moikka!", "moro!", "hei!", "heippa!", "terve!", "huomenta"]):
+            return GESTURE_HEY
+
+        # 3. Self-reference / Robot identity ("I am Laurimate", "created by", "olen laurimate")
+        if any(w in s_low for w in ["i am laurimate", "i'm laurimate", "olen laurimate", "my name", "created by", "luoneet minut", "kampusrobotti"]):
+            return GESTURE_ME
+
+        # 4. Uncertainty / Apologies / Don't know
+        if any(w in s_low for w in ["not sure", "don't know", "do not have", "sorry", "en ole varma", "en valitettavasti", "anteeksi"]):
+            return GESTURE_DONT_KNOW
+
+        # 5. Weather / Sky / Temperature / Outdoors
+        if any(w in s_low or w in q_low for w in ["weather", "sää", "degrees", "celsius", "cloudy", "sunny", "rain", "snow", "wind", "aste", "lämpötila"]):
+            return GESTURE_SKY_WEATHER
+
+        # 6. Food / Restaurant / Lunch / Coffee
+        if any(w in s_low or w in q_low for w in ["lunch", "restaurant", "cafeteria", "canteen", "barlaurea", "food", "coffee", "menu", "lounas", "ravintola", "ruokala", "kahvila", "ruokalista"]):
+            return GESTURE_FOOD
+
+        # 7. Locations / Directions / Floors / Entrances / Transport
+        if any(w in s_low or (is_first and w in q_low) for w in [
+            "floor", "ground", "entrance", "stair", "elevator", "walk", "station", "located",
+            "address", "vanha maantie", "building", "room", "library", "parking", "restroom", "toilet",
+            "kerros", "sisäänkäynti", "kävely", "asema", "sijaitsee", "osoite", "kirjasto", "pysäköinti", "vessa"
+        ]):
+            return GESTURE_DIRECTION
+
+        # 8. Digital / Apps / Tablet / Wi-Fi / Portals
+        if any(w in s_low for w in ["tuudo", "pakki", "eduroam", "wi-fi", "wifi", "app", "website", "portal", "online", "password", "login", "verkkosivu", "sovellus"]):
+            return GESTURE_SHOW
+
+        # 9. Gratitude / Enthusiasm / Jokes / Positive Reactions
+        if any(w in s_low or w in q_low for w in ["welcome!", "happy to help", "ole hyvä", "mielelläni", "joke", "vitsi", "funny", "great", "awesome", "wonderful", "congrat"]):
+            return GESTURE_ENTHUSE
+
+        # 10. Direct Affirmation ("Yes", "Of course", "Absolutely", "Kyllä")
+        if any(s_low.startswith(w) for w in ["yes", "absolutely", "of course", "sure", "certainly", "kyllä", "totta kai"]):
+            return GESTURE_YES
+
+        # 11. Direct Negation ("No,", "Closed", "Ei,")
+        if any(s_low.startswith(w) for w in ["no,", "no ", "unfortunately", "ei,", "ei "]) or "closed on weekends" in s_low:
+            return GESTURE_NO
+
+        # 12. Multiple items / Campuses / Lists / Numbers
+        if any(w in s_low for w in ["campuses", "all ", "everything", "both", "several", "kampusta", "kaikki", "useita"]):
+            return GESTURE_COUNT_ALL
+
+        # 13. Questions & Invitations directed to the user ("How can I help you?", "Would you like to know more?")
+        if s_low.endswith("?") or any(w in s_low for w in ["how can i help", "would you like", "let me know", "you can", "kuinka voin auttaa", "haluatko", "voit "]):
+            return GESTURE_YOU
+
+        # 14. Varied conversational storytelling & explaining
+        if not is_first:
+            return GESTURE_STORY + GESTURE_EXPLAIN
+        return GESTURE_EXPLAIN
+
+    def build_annotated_speech(self, question, answer, fallback_gesture=None):
+        """
+        Annotates every sentence (and long clause) of the answer with its own
+        context-matched, non-repeating NAOqi hand gesture (^start / ^wait) so Pepper's
+        hand signs flow naturally and match what it is saying throughout the entire answer.
+        """
+        clean_ans = to_utf8(answer).strip()
+        if not clean_ans:
+            return ""
+
+        # Split answer into sentences while keeping punctuation
+        raw_sentences = [s.strip() for s in re.findall(r'[^.!?]+[.!?]?', clean_ans) if s.strip()]
+        if not raw_sentences:
+            raw_sentences = [clean_ans]
+
+        # If a single sentence is long (> 16 words) and has a comma/conjunction, split into 2 natural clauses
+        segments = []
+        for sent in raw_sentences:
+            words = sent.split()
+            if len(words) > 16 and ", " in sent:
+                parts = sent.split(", ", 1)
+                segments.append(parts[0] + ",")
+                segments.append(parts[1])
+            else:
+                segments.append(sent)
+
+        annotated_parts = []
+        total = len(segments)
+        for idx, seg in enumerate(segments):
+            pool = self._select_gesture_pool_for_sentence(
+                seg,
+                question=question,
+                is_first=(idx == 0),
+                is_last=(idx == total - 1)
+            )
+            if idx == 0 and fallback_gesture and pool is GESTURE_EXPLAIN:
+                pool = fallback_gesture
+            g = self._pick_unique_gesture(pool)
+            annotated_parts.append("^start({}) {}".format(g, seg))
+
+        return " ".join(annotated_parts)
 
     def _reset_idle_timer(self):
         if self.idle_timer:
@@ -1288,8 +1936,9 @@ class LaurimateController(object):
     def speak_and_show(self, question, answer, lang="en", source="ai", gesture=None):
         self._cancel_idle_timer()
 
-        # 1. Mute mic so Pepper never hears itself
-        self.listener.set_muted(True)
+        # 1. Enable smart barge-in mode (ignores Pepper's own voice & small noises,
+        #    but interrupts immediately if a person speaks directly to Pepper)
+        self.listener.set_pepper_speaking(True)
 
         # 2. Set TTS language
         if "fi" in lang.lower():
@@ -1302,24 +1951,69 @@ class LaurimateController(object):
         # 3. Update tablet UI
         set_answer(self.tablet, question, answer, source)
 
-        # 4. Speak with animated gestures
+        # 4. Speak with multi-sentence natural hand gestures in an interruptible worker thread
+        spoken_text = self.build_annotated_speech(question, answer, fallback_gesture=gesture)
+        print("[Laurimate] Animated Speech with Natural Hand Signs: {}".format(spoken_text[:140]))
+
+        def _do_speak():
+            try:
+                self.animated_speech.say(spoken_text)
+            except Exception as e:
+                if not self.listener.barge_in_triggered:
+                    print("[Laurimate] Animated speech fallback: {}".format(e))
+                    if gesture:
+                        play_gesture_async(self.animation_player, gesture)
+                    try:
+                        self.tts.say(answer)
+                    except Exception:
+                        pass
+
+        speech_th = threading.Thread(target=_do_speak)
+        speech_th.daemon = True
+        speech_th.start()
+
+        last_head_lock = 0.0
+        while speech_th.is_alive():
+            if self.listener.barge_in_triggered or self.listener.is_recording:
+                print("[Laurimate] Interrupted by user speech -> Stopping current answer immediately.")
+                try:
+                    self.tts.stopAll()
+                except Exception:
+                    pass
+                try:
+                    self.animation_player.stopAll()
+                except Exception:
+                    pass
+                break
+            # Keep head looking straight forward and UP (-0.35 rad = ~20 deg up) at the person speaking,
+            # overriding any gesture timeline that tries to drop the head down or turn it sideways.
+            now_t = time.time()
+            if self.motion and (now_t - last_head_lock) >= 0.25:
+                last_head_lock = now_t
+                try:
+                    self.motion.setAngles(["HeadYaw", "HeadPitch"], [0.0, -0.35], 0.15)
+                except Exception:
+                    pass
+            time.sleep(0.04)
+
+        # If interrupted by real user speech, listener is already recording the new question; exit right away!
+        if self.listener.barge_in_triggered or self.listener.is_recording:
+            if self.motion:
+                try:
+                    self.motion.setAngles(["HeadYaw", "HeadPitch"], [0.0, -0.35], 0.15)
+                except Exception:
+                    pass
+            self.session_active = True
+            return
+
+        # 5. Normal completion: gently lock head looking UP at front person while still muted, then wait 0.45s for motors/echo to settle
+        self.listener.set_muted(True)
         try:
-            if gesture:
-                if isinstance(gesture, list):
-                    gesture = random.choice(gesture)
-                spoken_text = "^start({}) {}".format(gesture, answer)
-            else:
-                spoken_text = answer
-
-            self.animated_speech.say(spoken_text)
-        except Exception as e:
-            print("[Laurimate] Animated speech fallback: {}".format(e))
-            if gesture:
-                play_gesture_async(self.animation_player, gesture)
-            self.tts.say(answer)
-
-        # 5. Settling delay before unmuting
-        time.sleep(0.35)
+            self.motion.setAngles(["HeadYaw", "HeadPitch"], [0.0, -0.35], 0.14)
+        except Exception:
+            pass
+        time.sleep(0.45)
+        self.listener.set_pepper_speaking(False)
         self.listener.set_muted(False)
 
         # 6. Session stays alive
@@ -1327,21 +2021,22 @@ class LaurimateController(object):
         self._reset_idle_timer()
 
     def select_gesture(self, text):
-        lower = text.lower()
-        if any(w in lower for w in ["where", "missä", "location", "find", "room", "kartta"]):
+        words = set(re.findall(r'[\w\xc3\xa4\xc3\xb6\xc3\xa5]+', to_utf8(text).lower()))
+        if words.intersection(["where", "missä", "location", "find", "room", "kartta"]):
             return GESTURE_SHOW
-        elif any(w in lower for w in ["how", "miten", "why", "miksi", "explain", "kerro"]):
+        elif words.intersection(["how", "miten", "why", "miksi", "explain", "kerro"]):
             return GESTURE_EXPLAIN
-        elif any(w in lower for w in ["thank", "kiitos", "great", "hyvä", "loistava"]):
+        elif words.intersection(["thank", "thanks", "kiitos", "great", "hyvä", "loistava"]):
             return GESTURE_ENTHUSE
-        elif any(w in lower for w in ["yes", "joo", "kyllä"]):
+        elif words.intersection(["yes", "joo", "kyllä"]):
             return GESTURE_YES
-        elif any(w in lower for w in ["no", "ei"]):
+        elif words.intersection(["no", "ei"]):
             return GESTURE_NO
         return GESTURE_EXPLAIN
 
     def run_loop(self):
         print("[Laurimate] Controller running. Listening for user speech...")
+        noise_words = set(["for", "the", "a", "an", "to", "in", "of", "and", "or", "uh", "um", "oh", "hmm", "it", "is"])
         while self.running:
             try:
                 wav_bytes = self.listener.utterance_queue.get(timeout=1.0)
@@ -1351,12 +2046,13 @@ class LaurimateController(object):
             # 1. Transcribe audio with Google Cloud STT
             transcript, lang = transcribe_audio_google(wav_bytes)
 
-            if not transcript:
-                print("[Laurimate] No speech detected in utterance.")
+            if not transcript or transcript.lower().strip() in noise_words:
+                print("[Laurimate] No meaningful speech detected in utterance ('{}').".format(transcript))
                 set_no_speech(self.tablet)
-                time.sleep(1.5)
+                time.sleep(1.0)
                 if not self.session_active:
                     set_welcome(self.tablet)
+                self.listener.set_muted(False)
                 continue
 
             # 2. Show user question on tablet
@@ -1365,7 +2061,7 @@ class LaurimateController(object):
             # 3. Get AI answer using database context + live weather/time
             answer, source = get_answer_for_question(transcript, lang)
 
-            # 4. Select gesture & respond
+            # 4. Select gesture & respond (unmutes into smart barge-in mode while speaking)
             gesture = self.select_gesture(transcript)
             self.speak_and_show(transcript, answer, lang, source, gesture)
 
@@ -1392,45 +2088,166 @@ def main():
     except Exception as e:
         print("[Laurimate] Could not wake robot: {}".format(e))
 
-    # 3. Autonomous life & speaking movement
+    # 3. Disable AutonomousLife tablet screensaver hijack, keep natural awareness & speaking movement
     try:
         auto_life = ALProxy("ALAutonomousLife", PEPPER_IP, PEPPER_PORT)
-        auto_life.setState("solitary")
-        print("[Laurimate] Autonomous life set to 'solitary'.")
+        if auto_life.getState() != "disabled":
+            auto_life.setState("disabled")
+        print("[Laurimate] Autonomous life disabled (prevents Pepper screensaver from hiding tablet UI).")
     except Exception as e:
         print("[Laurimate] Autonomous life note: {}".format(e))
+
+    # Stop startapplaunchertablet screensaver daemon if running so it never overrides our webview
+    try:
+        os.system("pkill -f '[s]tartapplaunchertablet.py' >/dev/null 2>&1")
+    except Exception:
+        pass
+
+    # Re-ensure robot is standing awake after disabling AutonomousLife
+    try:
+        motion.wakeUp()
+        posture = ALProxy("ALRobotPosture", PEPPER_IP, PEPPER_PORT)
+        posture.goToPosture("StandInit", 0.5)
+    except Exception as e:
+        print("[Laurimate] Posture note: {}".format(e))
+
+    # Stop ALBasicAwareness from swinging Pepper's head sideways to random room sounds/movements,
+    # and instead run a smooth front-only head controller focused on the people directly in front.
+    try:
+        awareness = ALProxy("ALBasicAwareness", PEPPER_IP, PEPPER_PORT)
+        awareness.stopAwareness()
+        print("[Laurimate] Side-sound head wandering disabled — keeping head focused on front people.")
+    except Exception as e:
+        print("[Laurimate] Basic awareness note: {}".format(e))
+
+    def _front_focused_head_loop():
+        """
+        Keeps Pepper's head looking straight forward (HeadYaw = 0.0) and UP (HeadPitch = -0.35 rad, ~20 deg up)
+        toward the standing person's face without wandering left/right or moving motors during quiet listening.
+        """
+        target_yaw = 0.0
+        target_pitch = -0.35
+        try:
+            motion.setStiffnesses("Head", 0.80)
+            motion.setAngles(["HeadYaw", "HeadPitch"], [target_yaw, target_pitch], 0.14)
+        except Exception:
+            pass
+
+        while True:
+            time.sleep(1.5)
+            if os.path.exists("/tmp/laurimate_kids_webview_v6.flag"):
+                continue
+            try:
+                angles = motion.getAngles(["HeadYaw", "HeadPitch"], True)
+                # If any animation lowered the head or turned it sideways, restore front upward eye contact
+                if abs(angles[0] - target_yaw) > 0.08 or abs(angles[1] - target_pitch) > 0.08:
+                    if not LaurimateAudioInstance or LaurimateAudioInstance.pepper_speaking or LaurimateAudioInstance.muted or abs(angles[1] - target_pitch) > 0.12:
+                        motion.setAngles(["HeadYaw", "HeadPitch"], [target_yaw, target_pitch], 0.12)
+            except Exception:
+                pass
+
+    head_th = threading.Thread(target=_front_focused_head_loop)
+    head_th.daemon = True
+    head_th.start()
 
     try:
         speaking_move = ALProxy("ALSpeakingMovement", PEPPER_IP, PEPPER_PORT)
         speaking_move.setEnabled(True)
-        speaking_move.setMode("contextual")
-        print("[Laurimate] Contextual speaking movement enabled.")
+        # Use 'random' mode so Pepper continuously blends smooth BodyTalk gestures between our explicit ^start() hand signs
+        speaking_move.setMode("random")
+        anim_speech_cfg = ALProxy("ALAnimatedSpeech", PEPPER_IP, PEPPER_PORT)
+        anim_speech_cfg.setBodyLanguageModeFromStr("random")
+        print("[Laurimate] Natural continuous speaking hand movement enabled.")
     except Exception as e:
         print("[Laurimate] Speaking movement note: {}".format(e))
 
-    # 4. Tablet setup (with cold-boot retry for Android chest tablet startup)
+    # 4. Tablet setup + Permanent Anti-Screensaver Heartbeat Watchdog (Port 8766)
     tablet = None
     try:
+        import BaseHTTPServer
+        tablet_state = {"last_ping": time.time()}
+
+        class TabletPingHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+            def log_message(self, fmt, *args):
+                return
+            def do_GET(self):
+                tablet_state["last_ping"] = time.time()
+                self.send_response(200)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write("OK")
+
+        def _serve_ping():
+            try:
+                httpd = BaseHTTPServer.HTTPServer(("0.0.0.0", 8766), TabletPingHandler)
+                httpd.serve_forever()
+            except Exception:
+                pass
+
+        ping_th = threading.Thread(target=_serve_ping)
+        ping_th.daemon = True
+        ping_th.start()
+
         tablet = ALProxy("ALTabletService", PEPPER_IP, PEPPER_PORT)
+        try:
+            bm = ALProxy("ALBehaviorManager", PEPPER_IP, PEPPER_PORT)
+            for bhv in bm.getDefaultBehaviors():
+                try: bm.removeDefaultBehavior(bhv)
+                except Exception: pass
+            for bhv in bm.getRunningBehaviors():
+                if "laurimate" not in bhv.lower():
+                    try: bm.stopBehavior(bhv)
+                    except Exception: pass
+        except Exception:
+            pass
+        try:
+            at = ALProxy("_ALAutonomousTablet", PEPPER_IP, PEPPER_PORT)
+            at.setEnabled(False)
+        except Exception:
+            pass
+        try:
+            tablet.wakeUp()
+            tablet._setPreventCommandScreenOff(True)
+            tablet._stopAnimation()
+        except Exception:
+            pass
         url_with_cache_bust = "{}?t={}".format(TABLET_URL_BASE, int(time.time()))
         tablet.showWebview(url_with_cache_bust)
+        tablet_state["last_ping"] = time.time()
         print("[Laurimate] Tablet active: {}".format(url_with_cache_bust))
         set_welcome(tablet)
 
-        def _cold_boot_tablet_ensure():
-            for delay_s in (10.0, 20.0, 35.0):
-                time.sleep(delay_s)
+        def _tablet_keepalive_watchdog():
+            """Continuously locks WebView layer on top of Pepper's bubble screensaver without reloading."""
+            while True:
+                time.sleep(2.0)
                 if os.path.exists("/tmp/laurimate_kids_webview_v6.flag"):
+                    tablet_state["last_ping"] = time.time()
                     continue
                 try:
-                    t_url = "{}?t={}".format(TABLET_URL_BASE, int(time.time()))
-                    tablet.showWebview(t_url)
-                    time.sleep(1.0)
-                    set_welcome(tablet)
+                    # 0-arg showWebview() + _stopAnimation() keeps the webview layer in front
+                    # of the OpenGL bubble screensaver with ZERO page reloads!
+                    tablet._stopAnimation()
+                    tablet.showWebview()
                 except Exception:
                     pass
+                if (time.time() - tablet_state["last_ping"]) > 6.5:
+                    try:
+                        try:
+                            tablet.wakeUp()
+                        except Exception:
+                            pass
+                        t_url = "{}?t={}".format(TABLET_URL_BASE, int(time.time()))
+                        print("[Laurimate] Tablet heartbeat lost (screensaver/boot) -> Re-opening tablet UI...")
+                        tablet.showWebview(t_url)
+                        tablet_state["last_ping"] = time.time()
+                        time.sleep(1.2)
+                        set_welcome(tablet)
+                    except Exception:
+                        pass
 
-        tb_thread = threading.Thread(target=_cold_boot_tablet_ensure)
+        tb_thread = threading.Thread(target=_tablet_keepalive_watchdog)
         tb_thread.daemon = True
         tb_thread.start()
     except Exception as e:
